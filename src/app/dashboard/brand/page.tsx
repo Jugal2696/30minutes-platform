@@ -18,7 +18,7 @@ export default function BrandDashboard() {
   const [loading, setLoading] = useState(true);
   const [brand, setBrand] = useState<any>(null);
   
-  // KPI State - THIS IS WHAT WAS MISSING
+  // KPI State (This fixes the 'stats' error)
   const [stats, setStats] = useState({
     matchCount: 0,
     activeCampaigns: 0, 
@@ -144,7 +144,6 @@ export default function BrandDashboard() {
                 sub="Score > 60%"
                 action={() => window.location.href='/brand/discover'}
             />
-            {/* THIS IS THE FIXED CARD WITH THE INBOX LINK */}
             <KpiCard 
                 title="Pending Proposals" 
                 value={stats.pendingProposals} 
@@ -157,7 +156,7 @@ export default function BrandDashboard() {
                 value={stats.activeAgreements} 
                 icon={<FileText size={18} className="text-green-600"/>} 
                 sub="In Progress"
-                action={() => window.location.href='/brand/cobranding/settings'}
+                action={() => window.location.href='/brand/cobranding/agreements'}
             />
             <KpiCard 
                 title="Active Campaigns" 
@@ -290,14 +289,8 @@ export default function BrandDashboard() {
     </div>
   );
 }
-<KpiCard 
-    title="Active Agreements" 
-    value={stats.activeAgreements} 
-    icon={<FileText size={18} className="text-green-600"/>} 
-    sub="In Progress"
-    action={() => window.location.href='/brand/cobranding/agreements'} // <--- UPDATED LINK
-/>
-// HELPER COMPONENTS
+
+// HELPER COMPONENTS (INCLUDED)
 function KpiCard({ title, value, icon, sub, action, disabled }: any) {
     return (
         <Card className={`border-slate-200 shadow-sm transition-all ${!disabled ? 'hover:border-slate-300 cursor-pointer' : 'opacity-60'}`} onClick={!disabled ? action : undefined}>
