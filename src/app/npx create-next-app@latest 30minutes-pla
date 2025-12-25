@@ -1,0 +1,2 @@
+npx create-next-app@latest 30minutes-platform --typescript --tailwind --eslint
+cd 30minutes-platform
