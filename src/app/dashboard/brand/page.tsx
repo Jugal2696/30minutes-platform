@@ -314,7 +314,13 @@ function KpiCard({ title, value, icon, sub, action, disabled }: any) {
         </Card>
     )
 }
-
+<KpiCard 
+    title="Pending Proposals" 
+    value={stats.pendingProposals} 
+    icon={<Bell size={18} className="text-orange-600"/>} 
+    sub="Action Required"
+    action={() => window.location.href='/brand/cobranding/inbox'} // <--- UPDATED LINK
+/>
 function ActionCard({ title, desc, icon, link, cta }: any) {
     return (
         <Card className="hover:shadow-md transition-all border-slate-200 group cursor-pointer" onClick={() => window.location.href=link}>
