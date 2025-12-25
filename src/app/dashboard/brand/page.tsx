@@ -70,3 +70,10 @@ export default function BrandDashboard() {
     </div>
   );
 }
+<div className="mt-6 text-center py-10 bg-green-50 rounded-xl border border-green-100">
+    <h2 className="text-2xl font-bold text-green-900 mb-2">B2B Co-Branding</h2>
+    <p className="text-green-700 mb-6">Collaborate directly with other brands. Zero cost. High trust.</p>
+    <Button onClick={() => window.location.href='/brand/cobranding/settings'} className="bg-green-700 hover:bg-green-800 text-white">
+        Manage Co-Branding
+    </Button>
+</div>
