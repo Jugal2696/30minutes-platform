@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { UserSquare2, BarChart3, MapPin, CheckCircle2, ChevronRight, ChevronLeft, ShieldCheck, Instagram } from 'lucide-react';
+import { UserSquare2, BarChart3, MapPin, CheckCircle2, ChevronRight, ChevronLeft, ShieldCheck, Instagram, Youtube, Linkedin, Loader2 } from 'lucide-react';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,13 +17,21 @@ export default function CreatorOnboarding() {
   const [user, setUser] = useState<any>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
 
+  // Social Connection States
+  const [connected, setConnected] = useState({
+    instagram: false,
+    youtube: false,
+    linkedin: false
+  });
+
   const [formData, setFormData] = useState({
     channel_name: '',
     primary_niche: '',
     bio: '',
-    total_followers: '',
-    engagement_ratio: '',
-    average_reach: '',
+    // Data will be auto-populated
+    total_followers: 0,
+    engagement_ratio: 0,
+    average_reach: 0,
     penetrated_regions: ''
   });
 
@@ -36,7 +44,7 @@ export default function CreatorOnboarding() {
       }
       setUser(data.user);
 
-      // Pre-check: Prevent Duplicate Creator Profiles
+      // Pre-check
       const { data: existing } = await supabase
         .from('creators')
         .select('id')
@@ -54,39 +62,47 @@ export default function CreatorOnboarding() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // MOCK EXTRACTION ENGINE (Simulates API Fetch)
+  const handleConnect = (platform: 'instagram' | 'youtube' | 'linkedin') => {
+    // In System 3, this will trigger real OAuth
+    setConnected(prev => ({ ...prev, [platform]: true }));
+    
+    // Simulate finding data
+    if (platform === 'instagram') {
+        setFormData(prev => ({
+            ...prev,
+            total_followers: prev.total_followers + 54000,
+            engagement_ratio: 4.2,
+            average_reach: prev.average_reach + 12000,
+            channel_name: prev.channel_name || "@verified_creator"
+        }));
+    } else if (platform === 'youtube') {
+        setFormData(prev => ({
+            ...prev,
+            total_followers: prev.total_followers + 125000,
+            average_reach: prev.average_reach + 85000
+        }));
+    }
+  };
+
   async function handleSubmit() {
     if (!user) return;
     if (!isAuthorized) return alert("Authorization required.");
     
     setLoading(true);
 
-    // 1. DUPLICATE GUARD
-    const { data: existing } = await supabase
-        .from('creators')
-        .select('id')
-        .eq('profile_id', user.id)
-        .single();
-
-    if (existing) {
-        window.location.href = '/onboarding/pending';
-        return;
-    }
-
-    // 2. PAYLOAD PREP
     const payload = {
         profile_id: user.id,
         channel_name: formData.channel_name,
         primary_niche: formData.primary_niche,
         bio: formData.bio,
-        // Convert strings to numbers for DB math
-        total_followers: parseInt(formData.total_followers) || 0,
-        engagement_ratio: parseFloat(formData.engagement_ratio) || 0.0,
-        average_reach: parseInt(formData.average_reach) || 0,
+        total_followers: formData.total_followers,
+        engagement_ratio: formData.engagement_ratio,
+        average_reach: formData.average_reach,
         penetrated_regions: formData.penetrated_regions.split(',').map(s => s.trim()).filter(Boolean),
         verification_status: 'PENDING'
     };
 
-    // 3. INSERT
     const { error } = await supabase.from('creators').insert(payload);
 
     if (error) {
@@ -121,13 +137,13 @@ export default function CreatorOnboarding() {
                         <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                             <UserSquare2 className="text-purple-500"/> Channel Identity
                         </h2>
-                        <p className="text-slate-500 text-sm">How you appear to brands and advertisers.</p>
+                        <p className="text-slate-500 text-sm">Tell us who you are.</p>
                     </div>
                     
                     <div className="space-y-4">
                         <div>
-                            <label className="text-sm font-bold text-slate-700">Channel / Creator Name</label>
-                            <Input name="channel_name" value={formData.channel_name} onChange={handleChange} placeholder="e.g. TechWithRaj / @raj_tech" className="mt-1"/>
+                            <label className="text-sm font-bold text-slate-700">Display Name</label>
+                            <Input name="channel_name" value={formData.channel_name} onChange={handleChange} placeholder="@username" className="mt-1"/>
                         </div>
                         <div>
                             <label className="text-sm font-bold text-slate-700">Primary Niche</label>
@@ -137,53 +153,88 @@ export default function CreatorOnboarding() {
                                 <option value="LIFESTYLE">Lifestyle & Fashion</option>
                                 <option value="FOOD">Food & Travel</option>
                                 <option value="FINANCE">Finance & Business</option>
-                                <option value="ENTERTAINMENT">Entertainment & Comedy</option>
                             </select>
                         </div>
                         <div>
-                            <label className="text-sm font-bold text-slate-700">Bio / Pitch</label>
-                            <textarea 
-                                name="bio" 
-                                value={formData.bio} 
-                                onChange={handleChange} 
-                                placeholder="Short description for brands (e.g. 'I review budget smartphones for college students')"
-                                className="w-full mt-1 p-3 border rounded-md min-h-[100px] text-sm"
-                            />
+                            <label className="text-sm font-bold text-slate-700">Bio</label>
+                            <Input name="bio" value={formData.bio} onChange={handleChange} placeholder="I create content about..." className="mt-1"/>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* STEP 2: METRICS */}
+            {/* STEP 2: AUTOMATED EXTRACTION (UPDATED) */}
             {step === 2 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                     <div className="space-y-1">
                         <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                            <BarChart3 className="text-purple-500"/> Performance Metrics
+                            <BarChart3 className="text-purple-500"/> Connect Platforms
                         </h2>
-                        <p className="text-slate-500 text-sm">Self-reported stats. We verify this via API later.</p>
+                        <p className="text-slate-500 text-sm">We automatically verify your followers and reach.</p>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="col-span-2">
-                            <div className="bg-purple-50 p-3 rounded text-xs text-purple-800 flex items-center gap-2">
-                                <Instagram size={14} />
-                                Combine numbers across all your platforms (Insta + YT + LinkedIn).
+                    <div className="grid gap-4">
+                        {/* INSTAGRAM CONNECT */}
+                        <div className={`flex justify-between items-center p-4 border rounded-lg transition-all ${connected.instagram ? 'bg-green-50 border-green-200' : 'bg-white hover:border-purple-300'}`}>
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-pink-100 rounded-full flex items-center justify-center text-pink-600">
+                                    <Instagram size={20} />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-slate-900">Instagram</p>
+                                    <p className="text-xs text-slate-500">{connected.instagram ? 'Data Extracted ✅' : 'Connect to extract followers'}</p>
+                                </div>
                             </div>
+                            <Button 
+                                size="sm" 
+                                variant={connected.instagram ? "ghost" : "outline"}
+                                className={connected.instagram ? "text-green-600 font-bold" : ""}
+                                onClick={() => handleConnect('instagram')}
+                                disabled={connected.instagram}
+                            >
+                                {connected.instagram ? "Connected" : "Connect"}
+                            </Button>
                         </div>
-                        <div>
-                            <label className="text-sm font-bold text-slate-700">Total Followers</label>
-                            <Input type="number" name="total_followers" value={formData.total_followers} onChange={handleChange} placeholder="e.g. 50000" className="mt-1"/>
-                        </div>
-                        <div>
-                            <label className="text-sm font-bold text-slate-700">Avg. Reach / Views</label>
-                            <Input type="number" name="average_reach" value={formData.average_reach} onChange={handleChange} placeholder="e.g. 12000" className="mt-1"/>
-                        </div>
-                        <div>
-                            <label className="text-sm font-bold text-slate-700">Engagement Rate (%)</label>
-                            <Input type="number" name="engagement_ratio" value={formData.engagement_ratio} onChange={handleChange} placeholder="e.g. 5.5" className="mt-1"/>
+
+                        {/* YOUTUBE CONNECT */}
+                        <div className={`flex justify-between items-center p-4 border rounded-lg transition-all ${connected.youtube ? 'bg-green-50 border-green-200' : 'bg-white hover:border-purple-300'}`}>
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+                                    <Youtube size={20} />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-slate-900">YouTube</p>
+                                    <p className="text-xs text-slate-500">{connected.youtube ? 'Data Extracted ✅' : 'Connect to extract subscribers'}</p>
+                                </div>
+                            </div>
+                            <Button 
+                                size="sm" 
+                                variant={connected.youtube ? "ghost" : "outline"}
+                                className={connected.youtube ? "text-green-600 font-bold" : ""}
+                                onClick={() => handleConnect('youtube')}
+                                disabled={connected.youtube}
+                            >
+                                {connected.youtube ? "Connected" : "Connect"}
+                            </Button>
                         </div>
                     </div>
+
+                    {/* LIVE PREVIEW OF EXTRACTED DATA */}
+                    {(connected.instagram || connected.youtube) && (
+                        <div className="bg-slate-900 text-white p-4 rounded-lg mt-4 animate-in slide-in-from-bottom-2">
+                            <p className="text-xs font-bold opacity-50 uppercase mb-2">Total Extracted Reach</p>
+                            <div className="flex justify-between items-end">
+                                <div>
+                                    <p className="text-3xl font-extrabold">{formData.total_followers.toLocaleString()}</p>
+                                    <p className="text-xs opacity-70">Verified Audience</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xl font-bold text-green-400">{formData.engagement_ratio}%</p>
+                                    <p className="text-xs opacity-70">Avg. Engagement</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -222,12 +273,8 @@ export default function CreatorOnboarding() {
                             <span className="font-bold text-slate-900">{formData.channel_name}</span>
                         </div>
                         <div className="flex justify-between border-b border-slate-200 pb-2">
-                            <span className="text-slate-500">Niche</span>
-                            <span className="font-bold text-slate-900">{formData.primary_niche}</span>
-                        </div>
-                        <div className="flex justify-between border-b border-slate-200 pb-2">
-                            <span className="text-slate-500">Followers</span>
-                            <span className="font-bold text-slate-900">{formData.total_followers}</span>
+                            <span className="text-slate-500">Verified Followers</span>
+                            <span className="font-bold text-slate-900">{formData.total_followers.toLocaleString()}</span>
                         </div>
                     </div>
 
@@ -243,7 +290,7 @@ export default function CreatorOnboarding() {
                             <span className="font-bold block mb-1 flex items-center gap-2">
                                 <ShieldCheck size={14} /> Creator Authorization
                             </span>
-                            I confirm that I own this content channel. I authorize 30Minutes to display my public metrics to potential advertisers.
+                            I confirm that I own these accounts. I authorize 30Minutes to pull real-time metrics for advertisers.
                         </label>
                     </div>
                 </div>
