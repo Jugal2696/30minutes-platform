@@ -290,7 +290,13 @@ export default function BrandDashboard() {
     </div>
   );
 }
-
+<KpiCard 
+    title="Active Agreements" 
+    value={stats.activeAgreements} 
+    icon={<FileText size={18} className="text-green-600"/>} 
+    sub="In Progress"
+    action={() => window.location.href='/brand/cobranding/agreements'} // <--- UPDATED LINK
+/>
 // HELPER COMPONENTS
 function KpiCard({ title, value, icon, sub, action, disabled }: any) {
     return (
