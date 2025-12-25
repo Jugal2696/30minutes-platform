@@ -2,11 +2,11 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   Loader2, Target, Users, ShieldCheck, Briefcase, 
-  ExternalLink, Zap, FileText, Bell, CheckCircle2, AlertCircle 
+  ExternalLink, Zap, FileText, Bell, AlertCircle 
 } from 'lucide-react';
 
 const supabase = createClient(
@@ -18,10 +18,10 @@ export default function BrandDashboard() {
   const [loading, setLoading] = useState(true);
   const [brand, setBrand] = useState<any>(null);
   
-  // KPI State
+  // KPI State - THIS IS WHAT WAS MISSING
   const [stats, setStats] = useState({
     matchCount: 0,
-    activeCampaigns: 0, // Placeholder for future system
+    activeCampaigns: 0, 
     pendingProposals: 0,
     activeAgreements: 0
   });
@@ -50,7 +50,7 @@ export default function BrandDashboard() {
     }
     setBrand(business);
 
-    // 2. FETCH KPI DATA (Parallel Requests)
+    // 2. FETCH KPI DATA
     const [matches, intents, agreements] = await Promise.all([
         // A. Matches (Score >= 60)
         supabase.from('match_scores')
@@ -73,13 +73,12 @@ export default function BrandDashboard() {
 
     setStats({
         matchCount: matches.count || 0,
-        activeCampaigns: 0, // Placeholder
+        activeCampaigns: 0, 
         pendingProposals: intents.count || 0,
         activeAgreements: agreements.count || 0
     });
 
-    // 3. CONSTRUCT ACTIVITY FEED (Client-Side Merge)
-    // We combine recent events from different systems into one timeline
+    // 3. CONSTRUCT ACTIVITY FEED
     const recentMatches = (matches.data || []).slice(0, 5).map(m => ({
         type: 'MATCH',
         text: `New High-Value Creator Match (${m.final_score}%)`,
@@ -91,17 +90,17 @@ export default function BrandDashboard() {
         type: 'PROPOSAL',
         text: 'You received a new Co-Branding Proposal',
         date: new Date(i.created_at),
-        link: '/brand/cobranding/discover' // Will point to inbox later
+        link: '/brand/cobranding/inbox'
     }));
 
     const recentAgreements = (agreements.data || []).slice(0, 5).map(a => ({
         type: 'AGREEMENT',
         text: 'Co-Branding Agreement Started',
         date: new Date(a.started_at),
-        link: '/brand/cobranding/settings' // Will point to console later
+        link: '/brand/cobranding/settings'
     }));
 
-    // Merge and Sort by Date DESC
+    // Merge and Sort
     const combinedFeed = [...recentMatches, ...recentProposals, ...recentAgreements]
         .sort((a, b) => b.date.getTime() - a.date.getTime())
         .slice(0, 10);
@@ -136,7 +135,7 @@ export default function BrandDashboard() {
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         
-        {/* 2. KPI STRIP (REAL-TIME) */}
+        {/* 2. KPI STRIP */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <KpiCard 
                 title="Creator Matches" 
@@ -145,39 +144,39 @@ export default function BrandDashboard() {
                 sub="Score > 60%"
                 action={() => window.location.href='/brand/discover'}
             />
+            {/* THIS IS THE FIXED CARD WITH THE INBOX LINK */}
             <KpiCard 
                 title="Pending Proposals" 
                 value={stats.pendingProposals} 
                 icon={<Bell size={18} className="text-orange-600"/>} 
                 sub="Action Required"
-                action={() => window.location.href='/brand/cobranding/discover'} // Temporary link
+                action={() => window.location.href='/brand/cobranding/inbox'}
             />
              <KpiCard 
                 title="Active Agreements" 
                 value={stats.activeAgreements} 
                 icon={<FileText size={18} className="text-green-600"/>} 
                 sub="In Progress"
-                action={() => window.location.href='/brand/cobranding/settings'} // Temporary link
+                action={() => window.location.href='/brand/cobranding/settings'}
             />
             <KpiCard 
                 title="Active Campaigns" 
                 value={stats.activeCampaigns} 
                 icon={<Zap size={18} className="text-purple-600"/>} 
                 sub="Live Ads"
-                action={() => {}} // No action yet
+                action={() => {}}
                 disabled
             />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            {/* 3. PRIMARY ACTIONS (2/3 Width) */}
+            {/* 3. PRIMARY ACTIONS */}
             <div className="lg:col-span-2 space-y-6">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                     <Target size={20}/> Core Operations
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* DISCOVERY */}
                     <ActionCard 
                         title="Find Creators"
                         desc="AI-ranked creators matched to your niche."
@@ -185,7 +184,6 @@ export default function BrandDashboard() {
                         link="/brand/discover"
                         cta="View Matches"
                     />
-                    {/* TARGETING */}
                     <ActionCard 
                         title="Configure Targeting"
                         desc="Adjust budget, regions, and niches."
@@ -193,7 +191,6 @@ export default function BrandDashboard() {
                         link="/brand/preferences"
                         cta="Update Preferences"
                     />
-                    {/* CO-BRANDING DISCOVERY */}
                     <ActionCard 
                         title="Find Partners"
                         desc="Collaborate with verified non-competing brands."
@@ -201,7 +198,6 @@ export default function BrandDashboard() {
                         link="/brand/cobranding/discover"
                         cta="Browse Partners"
                     />
-                    {/* CO-BRANDING SETTINGS */}
                     <ActionCard 
                         title="Co-Branding Menu"
                         desc="Manage your collaboration visibility & offers."
@@ -237,20 +233,18 @@ export default function BrandDashboard() {
                 </div>
             </div>
 
-            {/* 4. ACCOUNT HEALTH (1/3 Width) */}
+            {/* 4. ACCOUNT HEALTH */}
             <div className="space-y-6">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                     <ShieldCheck size={20}/> Account Health
                 </h2>
                 <Card>
                     <CardContent className="p-6 space-y-6">
-                        {/* Verification */}
                         <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-slate-600">Verification</span>
                             <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Verified</Badge>
                         </div>
                         
-                        {/* Co-Branding Status */}
                         <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-slate-600">Co-Branding</span>
                             {brand.co_branding_enabled ? (
@@ -260,7 +254,6 @@ export default function BrandDashboard() {
                             )}
                         </div>
 
-                        {/* Violations */}
                         <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-slate-600">Violations</span>
                             <span className={`text-sm font-bold ${brand.co_branding_violation_count > 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -282,7 +275,6 @@ export default function BrandDashboard() {
                     </CardContent>
                 </Card>
 
-                {/* Quick Tips */}
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <h4 className="font-bold text-blue-900 text-sm mb-2 flex items-center gap-2">
                         <AlertCircle size={14}/> Pro Tip
@@ -314,13 +306,7 @@ function KpiCard({ title, value, icon, sub, action, disabled }: any) {
         </Card>
     )
 }
-<KpiCard 
-    title="Pending Proposals" 
-    value={stats.pendingProposals} 
-    icon={<Bell size={18} className="text-orange-600"/>} 
-    sub="Action Required"
-    action={() => window.location.href='/brand/cobranding/inbox'} // <--- UPDATED LINK
-/>
+
 function ActionCard({ title, desc, icon, link, cta }: any) {
     return (
         <Card className="hover:shadow-md transition-all border-slate-200 group cursor-pointer" onClick={() => window.location.href=link}>
