@@ -1,9 +1,10 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2 } from 'lucide-react';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,49 +16,62 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  // AUTO-ROUTING LOGIC
+  useEffect(() => {
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        // User is already logged in (e.g. from Google). Check role.
+        await checkRoleAndRedirect(session.user.id);
+      } else {
+        setCheckingSession(false);
+      }
+    }
+    checkSession();
+  }, []);
+
+  async function checkRoleAndRedirect(userId: string) {
+    setLoading(true);
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+
+    if (profile?.role === 'UNASSIGNED') {
+        window.location.href = '/onboarding/role-selection';
+    } else if (profile?.role === 'BUSINESS') {
+        window.location.href = '/dashboard/brand';
+    } else if (profile?.role === 'CREATOR') {
+        window.location.href = '/dashboard/creator';
+    } else if (profile?.role === 'ADMIN') {
+        window.location.href = '/admin';
+    } else {
+        window.location.href = '/onboarding/role-selection';
+    }
+  }
 
   async function handleAuth() {
     setLoading(true);
     if (isSignUp) {
-      // SIGN UP: Creates user with 'UNASSIGNED' role (handled by DB trigger)
-      const { error } = await supabase.auth.signUp({ 
-        email, 
-        password,
-      });
+      const { error } = await supabase.auth.signUp({ email, password });
       if (error) alert(error.message);
       else alert('Account created! Please check your email to confirm.');
+      setLoading(false);
     } else {
-      // SIGN IN
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         alert(error.message);
         setLoading(false);
         return;
       }
-
-      // 🔍 CHECK ROLE & REDIRECT
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single();
-
-      if (profile?.role === 'UNASSIGNED') {
-        window.location.href = '/onboarding/role-selection';
-      } else if (profile?.role === 'BUSINESS') {
-        window.location.href = '/dashboard/business';
-      } else if (profile?.role === 'CREATOR') {
-        window.location.href = '/dashboard/creator';
-      } else if (profile?.role === 'ADMIN') {
-        window.location.href = '/admin';
-      } else {
-        window.location.href = '/onboarding/role-selection';
-      }
+      // Use the shared routing function
+      await checkRoleAndRedirect(data.user.id);
     }
-    setLoading(false);
   }
 
-  // Google Login Handler
   async function handleGoogleLogin() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -65,6 +79,14 @@ export default function LoginPage() {
         redirectTo: `${window.location.origin}/auth/callback`, 
       },
     });
+  }
+
+  if (checkingSession) {
+     return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+            <Loader2 className="animate-spin h-8 w-8 text-slate-900" />
+        </div>
+     );
   }
 
   return (
