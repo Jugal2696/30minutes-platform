@@ -9,19 +9,11 @@ const supabase = createClient(
 
 export default function AuthCallback() {
   useEffect(() => {
-    // The Supabase Client SDK automatically handles the OAuth code exchange
-    // when this page loads. We just need to listen for the session.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || session) {
-        // Successfully logged in via Google.
-        // Redirect to Login page, which acts as our "Traffic Controller"
         window.location.href = '/login';
       }
     });
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, []);
 
   return (
