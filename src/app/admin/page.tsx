@@ -28,7 +28,7 @@ const iconMap: any = {
 export default function AdminOS() {
   const [loading, setLoading] = useState(true);
   const [modules, setModules] = useState<any[]>([]);
-  const [stats, setStats] = useState({ brands: 0, creators: 0 });
+  const [stats, setStats] = useState({ businesses: 0, creators: 0 });
 
   useEffect(() => {
     checkAccess();
@@ -40,13 +40,13 @@ export default function AdminOS() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = '/login'; return; }
     
-    // FIX: Type casting to handle Supabase join array/object ambiguity
+    // Type-safe RBAC Check
     const { data: roleData } = await supabase.from('user_roles').select('roles(name)').eq('user_id', user.id).single();
     const roleName = (roleData as any)?.roles?.name || ((roleData as any)?.roles?.[0]?.name);
 
     if (roleName !== 'SUPER_ADMIN') {
          const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-         if (profile?.role !== 'ADMIN') window.location.href = '/dashboard/brand';
+         if (profile?.role !== 'ADMIN') window.location.href = '/dashboard/business';
     }
   }
 
@@ -64,7 +64,7 @@ export default function AdminOS() {
   async function fetchStats() {
     const { count: bCount } = await supabase.from('businesses').select('*', { count: 'exact', head: true });
     const { count: cCount } = await supabase.from('creators').select('*', { count: 'exact', head: true });
-    setStats({ brands: bCount || 0, creators: cCount || 0 });
+    setStats({ businesses: bCount || 0, creators: cCount || 0 });
     setLoading(false);
   }
 
@@ -73,10 +73,12 @@ export default function AdminOS() {
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 p-8">
       <div className="max-w-7xl mx-auto space-y-10">
+        
+        {/* HEADER */}
         <div className="flex justify-between items-end border-b border-slate-800 pb-6">
             <div>
                 <h1 className="text-4xl font-black tracking-tight text-white mb-2">PLATFORM OS</h1>
-                <p className="text-slate-400 font-mono text-sm">v4.5.0 // GOD MODE ACTIVE</p>
+                <p className="text-slate-400 font-mono text-sm">v4.6.0 // BUSINESS ORIENTED</p>
             </div>
             <div className="flex gap-4">
                  <Button variant="outline" className="text-slate-900 border-slate-700 hover:bg-slate-800 hover:text-white" onClick={() => window.open('/', '_blank')}>
@@ -88,10 +90,11 @@ export default function AdminOS() {
             </div>
         </div>
 
+        {/* QUICK STATS - REFACTORED LABELS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-800">
-                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Brands</p>
-                <p className="text-3xl font-mono font-bold text-white mt-2">{stats.brands}</p>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Businesses</p>
+                <p className="text-3xl font-mono font-bold text-white mt-2">{stats.businesses}</p>
             </div>
             <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-800">
                 <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Creators</p>
@@ -103,6 +106,7 @@ export default function AdminOS() {
             </div>
         </div>
 
+        {/* MODULE GRID */}
         <div>
             <h2 className="text-xl font-bold text-white mb-6">Installed Apps</h2>
             {modules.length === 0 ? (

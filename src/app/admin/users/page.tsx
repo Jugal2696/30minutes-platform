@@ -27,27 +27,13 @@ export default function UserManager() {
   async function fetchUsers() {
     setLoading(true);
     
-    // 1. Fetch Basic Profiles
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, email, created_at, last_sign_in_at')
-      .order('created_at', { ascending: false });
-
-    // 2. Fetch RBAC Roles
-    const { data: userRoles } = await supabase
-      .from('user_roles')
-      .select('user_id, roles(name)');
-
-    // 3. Fetch Business/Creator Details
+    const { data: profiles } = await supabase.from('profiles').select('id, email, created_at, last_sign_in_at').order('created_at', { ascending: false });
+    const { data: userRoles } = await supabase.from('user_roles').select('user_id, roles(name)');
     const { data: businesses } = await supabase.from('businesses').select('profile_id, business_name, verification_status');
     const { data: creators } = await supabase.from('creators').select('profile_id, channel_name, verification_status');
 
-    // 4. Merge Data
     const merged = profiles?.map(p => {
-        // Find Role
         const rbac = userRoles?.find(r => r.user_id === p.id);
-        
-        // --- FIX: TYPE CASTING HERE ---
         const roleName = (rbac as any)?.roles?.name || ((rbac as any)?.roles?.[0]?.name) || 'USER'; 
         
         const business = businesses?.find(b => b.profile_id === p.id);
@@ -57,7 +43,8 @@ export default function UserManager() {
             ...p,
             display_name: business?.business_name || creator?.channel_name || p.email,
             verification_status: business?.verification_status || creator?.verification_status || 'N/A',
-            type: business ? 'BRAND' : (creator ? 'CREATOR' : 'USER'),
+            // REFACTOR: Use 'BUSINESS' instead of 'BRAND'
+            type: business ? 'BUSINESS' : (creator ? 'CREATOR' : 'USER'),
             role: roleName 
         };
     }) || [];
@@ -83,7 +70,8 @@ export default function UserManager() {
         }
 
         if (action === 'VERIFY') {
-            if (selectedUser.type === 'BRAND') await supabase.from('businesses').update({ verification_status: 'APPROVED' }).eq('profile_id', uid);
+            // REFACTOR: Logic uses 'BUSINESS' type now
+            if (selectedUser.type === 'BUSINESS') await supabase.from('businesses').update({ verification_status: 'APPROVED' }).eq('profile_id', uid);
             if (selectedUser.type === 'CREATOR') await supabase.from('creators').update({ verification_status: 'APPROVED' }).eq('profile_id', uid);
         }
 
@@ -129,7 +117,7 @@ export default function UserManager() {
                 </Button>
                 <div>
                     <h1 className="text-3xl font-bold">User Command</h1>
-                    <p className="text-slate-400">RBAC Enabled // Security Active</p>
+                    <p className="text-slate-400">Permissions & Security.</p>
                 </div>
             </div>
             <div className="relative w-64">
@@ -225,7 +213,6 @@ export default function UserManager() {
                 </Card>
             ))}
         </div>
-
       </div>
     </div>
   );
