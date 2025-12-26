@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Shield, ShieldAlert, CheckCircle2, XCircle, UserCog, ArrowLeft } from 'lucide-react';
+import { Loader2, Search, Shield, ShieldAlert, CheckCircle2, XCircle, UserCog, ArrowLeft, Unlock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const supabase = createClient(
@@ -18,6 +18,7 @@ export default function UserManager() {
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -25,26 +26,39 @@ export default function UserManager() {
 
   async function fetchUsers() {
     setLoading(true);
-    // 1. Fetch Profiles (Base Layer)
+    
+    // 1. Fetch Basic Profiles
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, email, role, created_at, last_sign_in_at')
+      .select('id, email, created_at, last_sign_in_at')
       .order('created_at', { ascending: false });
 
-    // 2. Fetch Business/Creator Details (Parallel)
+    // 2. Fetch RBAC Roles (CORRECT SOURCE OF TRUTH)
+    // We join user_roles -> roles to get the actual role names
+    const { data: userRoles } = await supabase
+      .from('user_roles')
+      .select('user_id, roles(name)');
+
+    // 3. Fetch Business/Creator Details
     const { data: businesses } = await supabase.from('businesses').select('profile_id, business_name, verification_status');
     const { data: creators } = await supabase.from('creators').select('profile_id, channel_name, verification_status');
 
-    // 3. Merge Data
+    // 4. Merge Data
     const merged = profiles?.map(p => {
+        // Find Role
+        const rbac = userRoles?.find(r => r.user_id === p.id);
+        const roleName = rbac?.roles?.name || 'USER'; // Default to USER if no RBAC entry
+        
         const business = businesses?.find(b => b.profile_id === p.id);
         const creator = creators?.find(c => c.profile_id === p.id);
         
         return {
             ...p,
-            display_name: business?.business_name || creator?.channel_name || 'Unnamed User',
+            // Prioritize Business Name -> Channel Name -> Email
+            display_name: business?.business_name || creator?.channel_name || p.email,
             verification_status: business?.verification_status || creator?.verification_status || 'N/A',
-            type: business ? 'BRAND' : (creator ? 'CREATOR' : 'USER')
+            type: business ? 'BRAND' : (creator ? 'CREATOR' : 'USER'),
+            role: roleName // Now using RBAC
         };
     }) || [];
 
@@ -52,40 +66,52 @@ export default function UserManager() {
     setLoading(false);
   }
 
-  async function handleAction(action: 'BAN' | 'VERIFY' | 'PROMOTE') {
+  async function handleAction(action: 'BAN' | 'UNBAN' | 'VERIFY' | 'PROMOTE') {
     if (!selectedUser) return;
+    setProcessing(true);
     const uid = selectedUser.id;
 
-    if (action === 'BAN') {
-        // We handle bans by setting status to 'BANNED' in the respective table
-        if (selectedUser.type === 'BRAND') await supabase.from('businesses').update({ verification_status: 'BANNED' }).eq('profile_id', uid);
-        if (selectedUser.type === 'CREATOR') await supabase.from('creators').update({ verification_status: 'BANNED' }).eq('profile_id', uid);
-    }
-
-    if (action === 'VERIFY') {
-        if (selectedUser.type === 'BRAND') await supabase.from('businesses').update({ verification_status: 'APPROVED' }).eq('profile_id', uid);
-        if (selectedUser.type === 'CREATOR') await supabase.from('creators').update({ verification_status: 'APPROVED' }).eq('profile_id', uid);
-    }
-
-    if (action === 'PROMOTE') {
-        // Use the RBAC system we built in System 4
-        // 1. Get SUPER_ADMIN role ID
-        const { data: role } = await supabase.from('roles').select('id').eq('name', 'SUPER_ADMIN').single();
-        if (role) {
-            await supabase.from('user_roles').insert({ user_id: uid, role_id: role.id });
+    try {
+        if (action === 'BAN') {
+            // CALLS THE NEW "KILL SWITCH" DB FUNCTION
+            const { error } = await supabase.rpc('ban_user_completely', { target_user_id: uid });
+            if (error) throw error;
         }
+
+        if (action === 'UNBAN') {
+            const { error } = await supabase.rpc('unban_user', { target_user_id: uid });
+            if (error) throw error;
+        }
+
+        if (action === 'VERIFY') {
+            if (selectedUser.type === 'BRAND') await supabase.from('businesses').update({ verification_status: 'APPROVED' }).eq('profile_id', uid);
+            if (selectedUser.type === 'CREATOR') await supabase.from('creators').update({ verification_status: 'APPROVED' }).eq('profile_id', uid);
+        }
+
+        if (action === 'PROMOTE') {
+            // RBAC Promotion
+            const { data: role } = await supabase.from('roles').select('id').eq('name', 'SUPER_ADMIN').single();
+            if (role) {
+                await supabase.from('user_roles').insert({ user_id: uid, role_id: role.id });
+            }
+        }
+
+        // CORRECT AUDIT LOGGING
+        await supabase.rpc('log_admin_action', { 
+            p_action: `USER_${action}`, 
+            p_resource: 'users',
+            p_target_id: uid, 
+            p_details: { target_email: selectedUser.email } 
+        });
+
+        alert(`User ${action} Successful`);
+        setSelectedUser(null);
+        fetchUsers(); // Refresh list
+
+    } catch (err: any) {
+        alert("Error: " + err.message);
     }
-
-    // Audit Log
-    await supabase.rpc('log_cms_action', { 
-        p_action: `USER_${action}`, 
-        p_page_id: uid, 
-        p_details: { target_email: selectedUser.email } 
-    });
-
-    alert(`User ${action} Successful`);
-    setSelectedUser(null);
-    fetchUsers();
+    setProcessing(false);
   }
 
   const filteredUsers = users.filter(u => 
@@ -107,7 +133,7 @@ export default function UserManager() {
                 </Button>
                 <div>
                     <h1 className="text-3xl font-bold">User Command</h1>
-                    <p className="text-slate-400">Manage permissions and access.</p>
+                    <p className="text-slate-400">RBAC Enabled // Security Active</p>
                 </div>
             </div>
             <div className="relative w-64">
@@ -124,18 +150,18 @@ export default function UserManager() {
         {/* USER LIST */}
         <div className="grid gap-4">
             {filteredUsers.map((user) => (
-                <Card key={user.id} className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-all">
+                <Card key={user.id} className={`bg-slate-900 border transition-all ${user.verification_status === 'BANNED' ? 'border-red-900/50 opacity-75' : 'border-slate-800 hover:border-slate-700'}`}>
                     <CardContent className="p-6 flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <div className={`h-12 w-12 rounded-full flex items-center justify-center font-bold text-lg ${
-                                user.role === 'ADMIN' ? 'bg-purple-900 text-purple-200' : 'bg-slate-800 text-slate-400'
+                                user.role === 'SUPER_ADMIN' ? 'bg-purple-900 text-purple-200' : 'bg-slate-800 text-slate-400'
                             }`}>
-                                {user.display_name.charAt(0).toUpperCase()}
+                                {user.display_name?.charAt(0).toUpperCase()}
                             </div>
                             <div>
                                 <h3 className="font-bold text-lg text-white flex items-center gap-2">
                                     {user.display_name}
-                                    {user.role === 'ADMIN' && <Badge className="bg-purple-600">ADMIN</Badge>}
+                                    {user.role === 'SUPER_ADMIN' && <Badge className="bg-purple-600 hover:bg-purple-600">GOD MODE</Badge>}
                                 </h3>
                                 <p className="text-sm text-slate-500 font-mono">{user.email}</p>
                                 <div className="flex gap-2 mt-1">
@@ -166,23 +192,37 @@ export default function UserManager() {
                                     <Button 
                                         className="bg-green-600 hover:bg-green-700 justify-start"
                                         onClick={() => handleAction('VERIFY')}
+                                        disabled={processing}
                                     >
                                         <CheckCircle2 size={18} className="mr-2"/> Force Verify (Approve)
                                     </Button>
                                     <Button 
                                         className="bg-purple-600 hover:bg-purple-700 justify-start"
                                         onClick={() => handleAction('PROMOTE')}
-                                        disabled={user.role === 'ADMIN'}
+                                        disabled={user.role === 'SUPER_ADMIN' || processing}
                                     >
-                                        <Shield size={18} className="mr-2"/> Promote to Admin
+                                        <Shield size={18} className="mr-2"/> Promote to Super Admin
                                     </Button>
-                                    <Button 
-                                        variant="destructive" 
-                                        className="justify-start"
-                                        onClick={() => handleAction('BAN')}
-                                    >
-                                        <XCircle size={18} className="mr-2"/> BAN USER (Kill Switch)
-                                    </Button>
+                                    
+                                    {user.verification_status === 'BANNED' ? (
+                                        <Button 
+                                            variant="secondary" 
+                                            className="justify-start bg-blue-900 hover:bg-blue-800 text-white"
+                                            onClick={() => handleAction('UNBAN')}
+                                            disabled={processing}
+                                        >
+                                            <Unlock size={18} className="mr-2"/> UNBAN USER (Restore Access)
+                                        </Button>
+                                    ) : (
+                                        <Button 
+                                            variant="destructive" 
+                                            className="justify-start"
+                                            onClick={() => handleAction('BAN')}
+                                            disabled={user.role === 'SUPER_ADMIN' || processing}
+                                        >
+                                            <XCircle size={18} className="mr-2"/> BAN USER (Kill Switch)
+                                        </Button>
+                                    )}
                                 </div>
                             </DialogContent>
                         </Dialog>
