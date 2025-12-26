@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, XCircle, ArrowRight, MessageSquare, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -33,8 +33,6 @@ export default function ProposalInbox() {
       .single();
 
     if (me) {
-      // Fetch Incoming Proposals (PENDING)
-      // We join requester business details + option details
       const { data } = await supabase
         .from('co_branding_intents')
         .select(`
@@ -56,7 +54,6 @@ export default function ProposalInbox() {
     if (!selectedProposal) return;
     setProcessingId(selectedProposal.id);
 
-    // 1. Update Status
     const { error } = await supabase
         .from('co_branding_intents')
         .update({ status: decision })
@@ -65,11 +62,9 @@ export default function ProposalInbox() {
     if (error) {
         alert("Error: " + error.message);
     } else {
-        // 2. UI Refresh
         setProposals(proposals.filter(p => p.id !== selectedProposal.id));
         setSelectedProposal(null);
         if (decision === 'ACCEPTED') {
-            // Optional: Redirect to agreements or show success
             alert("Proposal Accepted! Agreement Created.");
         }
     }
@@ -82,7 +77,6 @@ export default function ProposalInbox() {
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 p-6">
       <div className="max-w-5xl mx-auto space-y-8">
         
-        {/* HEADER */}
         <div className="flex justify-between items-center">
             <div>
                 <h1 className="text-3xl font-extrabold text-slate-900">Proposal Inbox</h1>
@@ -91,7 +85,6 @@ export default function ProposalInbox() {
             <Button variant="outline" onClick={() => window.location.href='/dashboard/brand'}>Back to Dashboard</Button>
         </div>
 
-        {/* INBOX LIST */}
         {proposals.length === 0 ? (
             <div className="text-center py-20 bg-white border border-dashed border-slate-300 rounded-lg">
                 <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
@@ -134,8 +127,8 @@ export default function ProposalInbox() {
             </div>
         )}
 
-        {/* REVIEW DIALOG */}
-        <Dialog open={!!selectedProposal} onOpenChange={(open) => !open && setSelectedProposal(null)}>
+        {/* REVIEW DIALOG - FIXED TYPING HERE */}
+        <Dialog open={!!selectedProposal} onOpenChange={(open: boolean) => !open && setSelectedProposal(null)}>
             {selectedProposal && (
                 <DialogContent className="max-w-xl">
                     <DialogHeader>
@@ -144,7 +137,6 @@ export default function ProposalInbox() {
                     </DialogHeader>
 
                     <div className="space-y-6 py-4">
-                        {/* THE DEAL */}
                         <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
                             <div>
                                 <p className="text-xs font-bold text-slate-500 uppercase mb-1">They Get (Your Service)</p>
@@ -158,7 +150,6 @@ export default function ProposalInbox() {
                             </div>
                         </div>
 
-                        {/* PRIVATE NOTE */}
                         {selectedProposal.private_note && (
                             <div className="space-y-2">
                                 <p className="text-sm font-bold text-slate-900 flex items-center gap-2">

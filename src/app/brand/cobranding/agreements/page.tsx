@@ -4,8 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText, Clock, ExternalLink, UploadCloud, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Loader2, FileText, Clock, ExternalLink, UploadCloud, CheckCircle2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 const supabase = createClient(
@@ -18,9 +18,8 @@ export default function AgreementConsole() {
   const [agreements, setAgreements] = useState<any[]>([]);
   const [myBusinessId, setMyBusinessId] = useState<string | null>(null);
   
-  // Proof Upload State
   const [selectedAgreement, setSelectedAgreement] = useState<any>(null);
-  const [proofData, setProofData] = useState(''); // Just URL/Text for now
+  const [proofData, setProofData] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -40,8 +39,6 @@ export default function AgreementConsole() {
     if (me) {
       setMyBusinessId(me.id);
       
-      // Fetch Agreements where I am A or B
-      // Also fetch the related Intent details + Partner Names + Proofs
       const { data } = await supabase
         .from('co_branding_agreements')
         .select(`
@@ -66,10 +63,6 @@ export default function AgreementConsole() {
     if (!myBusinessId || !selectedAgreement || !proofData) return;
     setSubmitting(true);
 
-    // Determine Proof Type based on role
-    // If I am Brand A (Requester), I owe the "Offered Option"
-    // If I am Brand B (Receiver), I owe the "Requested Option"
-    // Simplified: Just use 'URL' for MVP, or detect from intent.
     const proofType = 'URL'; 
 
     const { error } = await supabase.from('co_branding_proofs').insert({
@@ -86,7 +79,7 @@ export default function AgreementConsole() {
         alert("Proof Submitted! Admin will verify.");
         setProofData('');
         setSelectedAgreement(null);
-        fetchAgreements(); // Refresh UI
+        fetchAgreements();
     }
     setSubmitting(false);
   }
@@ -97,7 +90,6 @@ export default function AgreementConsole() {
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 p-6">
       <div className="max-w-6xl mx-auto space-y-8">
         
-        {/* HEADER */}
         <div className="flex justify-between items-center">
             <div>
                 <h1 className="text-3xl font-extrabold text-slate-900">Active Agreements</h1>
@@ -149,7 +141,6 @@ export default function AgreementConsole() {
                             <CardContent className="p-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     
-                                    {/* MY DUTY */}
                                     <div className="space-y-4">
                                         <h3 className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2">
                                             <CheckCircle2 size={16}/> Your Responsibility
@@ -165,7 +156,7 @@ export default function AgreementConsole() {
                                                 <CheckCircle2 size={16}/> Proof Submitted on {new Date(myProof.submitted_at).toLocaleDateString()}
                                             </div>
                                         ) : (
-                                            <Dialog>
+                                            <Dialog onOpenChange={(open: boolean) => !open && setSelectedAgreement(null)}>
                                                 <DialogTrigger asChild>
                                                     <Button className="w-full bg-slate-900 text-white" onClick={() => setSelectedAgreement(deal)}>
                                                         <UploadCloud size={16} className="mr-2"/> Submit Proof
@@ -205,7 +196,6 @@ export default function AgreementConsole() {
                                         )}
                                     </div>
 
-                                    {/* THEIR DUTY */}
                                     <div className="space-y-4">
                                         <h3 className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2">
                                             <ExternalLink size={16}/> Partner Responsibility
