@@ -41,16 +41,13 @@ export async function middleware(request: NextRequest) {
 
   // 2. EMERGENCY KILL SWITCHES
   try {
-      // Direct DB call to ensure we catch the kill switch immediately
       const { data: controls } = await supabase.from('emergency_controls').select('*').single()
 
       if (controls) {
-        // Kill All Traffic
         if (controls.kill_all_traffic && path !== '/maintenance') {
           return NextResponse.redirect(new URL('/maintenance', request.url))
         }
 
-        // Kill Auth (Login/Signup)
         if (controls.kill_auth_system) {
            const isAuthRoute = path.startsWith('/login') || path.startsWith('/signup') || path.startsWith('/onboarding') || path.startsWith('/auth');
            const isLogout = path === '/auth/logout' || path === '/logout';
@@ -64,7 +61,7 @@ export async function middleware(request: NextRequest) {
       console.error("Middleware Safety Check Failed", e)
   }
 
-  // 3. PROTECTED ROUTES (Dashboard)
+  // 3. PROTECTED ROUTES
   if (path.startsWith('/dashboard')) {
     if (!user) {
       return NextResponse.redirect(new URL('/login', request.url))
