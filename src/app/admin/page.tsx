@@ -3,186 +3,144 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2, XCircle, Loader2, FileText, ExternalLink } from 'lucide-react';
+import { 
+  Loader2, LayoutDashboard, Settings, Users, FileText, Flag, 
+  ShieldAlert, ArrowRight, ExternalLink, Menu, Scale, Globe 
+} from 'lucide-react';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function AdminDashboard() {
+// 🧠 ICON MAP: Connects DB string to React Component
+const iconMap: any = {
+  LayoutDashboard: <LayoutDashboard size={24} />,
+  Settings: <Settings size={24} />,
+  Users: <Users size={24} />,
+  FileText: <FileText size={24} />,
+  Flag: <Flag size={24} />,
+  ShieldAlert: <ShieldAlert size={24} />,
+  Menu: <Menu size={24} />,
+  Scale: <Scale size={24} />,
+  Globe: <Globe size={24} />
+};
+
+export default function AdminOS() {
   const [loading, setLoading] = useState(true);
-  const [brands, setBrands] = useState<any[]>([]);
-  const [creators, setCreators] = useState<any[]>([]);
-  const [proofs, setProofs] = useState<any[]>([]);
+  const [modules, setModules] = useState<any[]>([]);
+  const [stats, setStats] = useState({ brands: 0, creators: 0 });
 
   useEffect(() => {
-    checkAdmin();
-    fetchData();
+    checkAccess();
+    fetchModules();
+    fetchStats();
   }, []);
 
-  async function checkAdmin() {
+  async function checkAccess() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = '/login'; return; }
     
-    // Check role in profiles
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    if (profile?.role !== 'ADMIN') {
-        // If not admin, kick them out
-        window.location.href = '/dashboard/brand';
+    // RBAC Check
+    const { data: roleData } = await supabase.from('user_roles').select('roles(name)').eq('user_id', user.id).single();
+    if (roleData?.roles?.name !== 'SUPER_ADMIN') {
+         // Fallback for legacy admin
+         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+         if (profile?.role !== 'ADMIN') window.location.href = '/dashboard/brand';
     }
   }
 
-  async function fetchData() {
-    setLoading(true);
-    // 1. Fetch Brands
-    const { data: bData } = await supabase.from('businesses').select('*').order('created_at', { ascending: false });
-    if (bData) setBrands(bData);
-
-    // 2. Fetch Creators
-    const { data: cData } = await supabase.from('creators').select('*').order('created_at', { ascending: false });
-    if (cData) setCreators(cData);
-
-    // 3. Fetch Pending Proofs
-    const { data: pData } = await supabase
-        .from('co_branding_proofs')
-        .select(`
-            *,
-            business:businesses(business_name),
-            agreement:co_branding_agreements(
-                id,
-                intent:co_branding_intents(
-                    requested_option:co_branding_options!requested_option_id(title),
-                    offered_option:co_branding_options!offered_option_id(title)
-                )
-            )
-        `)
-        .eq('admin_verification_status', 'PENDING');
-    if (pData) setProofs(pData);
+  async function fetchModules() {
+    const { data } = await supabase
+        .from('admin_ui_modules')
+        .select('*')
+        .eq('is_visible', true)
+        .neq('route', '/admin') // Don't show "Dashboard" link on Dashboard
+        .order('order_index', { ascending: true });
     
+    if (data) setModules(data);
+  }
+
+  async function fetchStats() {
+    const { count: bCount } = await supabase.from('businesses').select('*', { count: 'exact', head: true });
+    const { count: cCount } = await supabase.from('creators').select('*', { count: 'exact', head: true });
+    setStats({ brands: bCount || 0, creators: cCount || 0 });
     setLoading(false);
   }
 
-  // USER APPROVAL
-  async function updateStatus(table: 'businesses' | 'creators', id: string, status: 'APPROVED' | 'REJECTED') {
-    await supabase.from(table).update({ verification_status: status }).eq('id', id);
-    fetchData(); 
-  }
-
-  // PROOF VERIFICATION
-  async function verifyProof(proofId: string, agreementId: string, status: 'APPROVED' | 'REJECTED') {
-    if (status === 'APPROVED') {
-        // 1. Mark Proof as Approved
-        await supabase.from('co_branding_proofs').update({ admin_verification_status: 'APPROVED' }).eq('id', proofId);
-        // 2. Mark Agreement Completed (Simplified)
-        await supabase.from('co_branding_agreements').update({ status: 'COMPLETED' }).eq('id', agreementId);
-    } else {
-        await supabase.from('co_branding_proofs').update({ admin_verification_status: 'REJECTED' }).eq('id', proofId);
-    }
-    fetchData();
-  }
-
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-10">
+    <div className="min-h-screen bg-slate-950 font-sans text-slate-100 p-8">
+      <div className="max-w-7xl mx-auto space-y-10">
+        
+        {/* HEADER */}
+        <div className="flex justify-between items-end border-b border-slate-800 pb-6">
             <div>
-                <h1 className="text-3xl font-extrabold tracking-tight">System Command</h1>
-                <p className="text-slate-400">Master Control // Governance</p>
+                <h1 className="text-4xl font-black tracking-tight text-white mb-2">PLATFORM OS</h1>
+                <p className="text-slate-400 font-mono text-sm">v4.5.0 // GOD MODE ACTIVE</p>
             </div>
-            <Button variant="destructive" onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login'; }}>
-                Secure Logout
-            </Button>
+            <div className="flex gap-4">
+                 <Button variant="outline" className="text-slate-900 border-slate-700 hover:bg-slate-800 hover:text-white" onClick={() => window.open('/', '_blank')}>
+                    View Live Site <ExternalLink size={14} className="ml-2"/>
+                </Button>
+                <Button variant="destructive" onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login'; }}>
+                    Secure Logout
+                </Button>
+            </div>
         </div>
 
-        <Tabs defaultValue="brands" className="space-y-6">
-            <TabsList className="bg-slate-800 border-slate-700">
-                <TabsTrigger value="brands">Brands ({brands.filter(b => b.verification_status === 'PENDING').length})</TabsTrigger>
-                <TabsTrigger value="creators">Creators ({creators.filter(c => c.verification_status === 'PENDING').length})</TabsTrigger>
-                <TabsTrigger value="proofs">
-                    Proofs ({proofs.length}) 
-                    {proofs.length > 0 && <span className="ml-2 h-2 w-2 rounded-full bg-red-500 animate-pulse"/>}
-                </TabsTrigger>
-            </TabsList>
+        {/* QUICK STATS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-800">
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Brands</p>
+                <p className="text-3xl font-mono font-bold text-white mt-2">{stats.brands}</p>
+            </div>
+            <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-800">
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Creators</p>
+                <p className="text-3xl font-mono font-bold text-white mt-2">{stats.creators}</p>
+            </div>
+            <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-800">
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">System Status</p>
+                <p className="text-3xl font-mono font-bold text-green-500 mt-2">OPERATIONAL</p>
+            </div>
+        </div>
 
-            {/* BRANDS TAB */}
-            <TabsContent value="brands" className="space-y-4">
-                {brands.map((brand) => (
-                    <Card key={brand.id} className="bg-slate-800 border-slate-700 text-slate-100">
-                        <CardHeader className="flex flex-row justify-between items-start">
-                            <CardTitle className="text-xl">{brand.business_name} <StatusBadge status={brand.verification_status}/></CardTitle>
-                            <div className="flex gap-2">
-                                {brand.verification_status === 'PENDING' && (
-                                    <>
-                                        <Button size="sm" className="bg-green-600" onClick={() => updateStatus('businesses', brand.id, 'APPROVED')}>Approve</Button>
-                                        <Button size="sm" variant="destructive" onClick={() => updateStatus('businesses', brand.id, 'REJECTED')}>Reject</Button>
-                                    </>
-                                )}
-                            </div>
-                        </CardHeader>
-                    </Card>
-                ))}
-            </TabsContent>
+        {/* DYNAMIC MODULE GRID */}
+        <div>
+            <h2 className="text-xl font-bold text-white mb-6">Installed Apps</h2>
+            {modules.length === 0 ? (
+                <div className="text-slate-500 italic">No modules registered. Run the SQL script.</div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {modules.map((mod) => (
+                        <Card 
+                            key={mod.id} 
+                            className="bg-slate-900 border-slate-800 hover:border-slate-600 hover:bg-slate-800 transition-all cursor-pointer group"
+                            onClick={() => window.location.href = mod.route}
+                        >
+                            <CardHeader className="pb-4 pt-6">
+                                <div className="flex justify-between items-start">
+                                    <div className="h-14 w-14 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-center text-slate-200 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-500 transition-all shadow-sm">
+                                        {iconMap[mod.icon] || <LayoutDashboard />}
+                                    </div>
+                                    <ArrowRight className="text-slate-600 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" size={20} />
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <CardTitle className="text-lg text-white mb-1 group-hover:text-blue-100">{mod.label}</CardTitle>
+                                <div className="flex items-center gap-2">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-slate-600 group-hover:bg-blue-400"></span>
+                                    <p className="text-xs text-slate-500 font-mono uppercase group-hover:text-slate-300">{mod.category}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            )}
+        </div>
 
-            {/* CREATORS TAB */}
-            <TabsContent value="creators" className="space-y-4">
-                {creators.map((creator) => (
-                    <Card key={creator.id} className="bg-slate-800 border-slate-700 text-slate-100">
-                        <CardHeader className="flex flex-row justify-between items-start">
-                            <CardTitle className="text-xl">{creator.channel_name} <StatusBadge status={creator.verification_status}/></CardTitle>
-                            <div className="flex gap-2">
-                                {creator.verification_status === 'PENDING' && (
-                                    <>
-                                        <Button size="sm" className="bg-green-600" onClick={() => updateStatus('creators', creator.id, 'APPROVED')}>Approve</Button>
-                                        <Button size="sm" variant="destructive" onClick={() => updateStatus('creators', creator.id, 'REJECTED')}>Reject</Button>
-                                    </>
-                                )}
-                            </div>
-                        </CardHeader>
-                    </Card>
-                ))}
-            </TabsContent>
-
-            {/* PROOFS TAB */}
-            <TabsContent value="proofs" className="space-y-4">
-                {proofs.length === 0 && <p className="text-slate-500 italic">No pending proofs to verify.</p>}
-                {proofs.map((proof) => (
-                    <Card key={proof.id} className="bg-slate-800 border-slate-700 text-slate-100">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <FileText size={20} className="text-blue-400"/>
-                                Proof from {proof.business.business_name}
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="bg-slate-900 p-4 rounded border border-slate-700 font-mono text-sm break-all flex items-center justify-between">
-                                {proof.proof_data}
-                                <a href={proof.proof_data} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300">
-                                    <ExternalLink size={16}/>
-                                </a>
-                            </div>
-                            <div className="flex gap-4 pt-2">
-                                <Button className="bg-green-600 hover:bg-green-700" onClick={() => verifyProof(proof.id, proof.agreement_id, 'APPROVED')}>
-                                    <CheckCircle2 size={16} className="mr-2"/> Verify & Complete Agreement
-                                </Button>
-                                <Button variant="destructive" onClick={() => verifyProof(proof.id, proof.agreement_id, 'REJECTED')}>
-                                    <XCircle size={16} className="mr-2"/> Reject as Fake
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </TabsContent>
-        </Tabs>
       </div>
     </div>
   );
-}
-
-function StatusBadge({ status }: { status: string }) {
-    const colors: any = { APPROVED: 'text-green-400', PENDING: 'text-yellow-400', REJECTED: 'text-red-400' };
-    return <span className={`text-xs ml-2 ${colors[status] || 'text-slate-400'}`}>[{status}]</span>;
 }
