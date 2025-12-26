@@ -34,44 +34,41 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
-  // 🛑 1. ADMIN BYPASS (CRITICAL)
-  // Admins must ALWAYS be able to access /admin to turn off the kill switch.
-  // We also allow static assets to prevent the site looking broken.
+  // 1. ADMIN BYPASS (Critical Safety)
   if (path.startsWith('/admin') || path.startsWith('/_next') || path.includes('.')) {
     return response
   }
 
-  // 🛑 2. FETCH EMERGENCY CONTROLS
-  // In a high-scale app, we would cache this in Redis/Edge Config.
-  // For now, a direct DB call ensures immediate consistency.
-  const { data: controls } = await supabase.from('emergency_controls').select('*').single()
+  // 2. EMERGENCY KILL SWITCHES
+  try {
+      // Direct DB call to ensure we catch the kill switch immediately
+      const { data: controls } = await supabase.from('emergency_controls').select('*').single()
 
-  if (controls) {
-    // A. KILL ALL TRAFFIC
-    if (controls.kill_all_traffic && path !== '/maintenance') {
-      return NextResponse.redirect(new URL('/maintenance', request.url))
-    }
+      if (controls) {
+        // Kill All Traffic
+        if (controls.kill_all_traffic && path !== '/maintenance') {
+          return NextResponse.redirect(new URL('/maintenance', request.url))
+        }
 
-    // B. KILL AUTH SYSTEM
-    // Block login, signup, onboarding, and auth callbacks if auth is killed
-    if (controls.kill_auth_system) {
-       const isAuthRoute = path.startsWith('/login') || path.startsWith('/signup') || path.startsWith('/onboarding') || path.startsWith('/auth');
-       // Allow logout so trapped users can leave
-       const isLogout = path === '/auth/logout' || path === '/logout';
-       
-       if (isAuthRoute && !isLogout && path !== '/maintenance') {
-          return NextResponse.redirect(new URL('/maintenance?reason=auth_disabled', request.url))
-       }
-    }
+        // Kill Auth (Login/Signup)
+        if (controls.kill_auth_system) {
+           const isAuthRoute = path.startsWith('/login') || path.startsWith('/signup') || path.startsWith('/onboarding') || path.startsWith('/auth');
+           const isLogout = path === '/auth/logout' || path === '/logout';
+           
+           if (isAuthRoute && !isLogout && path !== '/maintenance') {
+              return NextResponse.redirect(new URL('/maintenance?reason=auth_disabled', request.url))
+           }
+        }
+      }
+  } catch (e) {
+      console.error("Middleware Safety Check Failed", e)
   }
 
-  // 🛑 3. RBAC ROUTE PROTECTION (Existing Logic)
-  // Protected Routes
+  // 3. PROTECTED ROUTES (Dashboard)
   if (path.startsWith('/dashboard')) {
     if (!user) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
-    // (Optional: You could check banned_until here too, but auth.getUser handles session validity)
   }
 
   return response
@@ -79,12 +76,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
