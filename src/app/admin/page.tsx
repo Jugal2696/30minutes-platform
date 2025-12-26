@@ -13,7 +13,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// 🧠 ICON MAP: Connects DB string to React Component
 const iconMap: any = {
   LayoutDashboard: <LayoutDashboard size={24} />,
   Settings: <Settings size={24} />,
@@ -41,10 +40,11 @@ export default function AdminOS() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = '/login'; return; }
     
-    // RBAC Check
+    // FIX: Type casting to handle Supabase join array/object ambiguity
     const { data: roleData } = await supabase.from('user_roles').select('roles(name)').eq('user_id', user.id).single();
-    if (roleData?.roles?.name !== 'SUPER_ADMIN') {
-         // Fallback for legacy admin
+    const roleName = (roleData as any)?.roles?.name || ((roleData as any)?.roles?.[0]?.name);
+
+    if (roleName !== 'SUPER_ADMIN') {
          const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
          if (profile?.role !== 'ADMIN') window.location.href = '/dashboard/brand';
     }
@@ -55,7 +55,7 @@ export default function AdminOS() {
         .from('admin_ui_modules')
         .select('*')
         .eq('is_visible', true)
-        .neq('route', '/admin') // Don't show "Dashboard" link on Dashboard
+        .neq('route', '/admin')
         .order('order_index', { ascending: true });
     
     if (data) setModules(data);
@@ -73,8 +73,6 @@ export default function AdminOS() {
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 p-8">
       <div className="max-w-7xl mx-auto space-y-10">
-        
-        {/* HEADER */}
         <div className="flex justify-between items-end border-b border-slate-800 pb-6">
             <div>
                 <h1 className="text-4xl font-black tracking-tight text-white mb-2">PLATFORM OS</h1>
@@ -90,7 +88,6 @@ export default function AdminOS() {
             </div>
         </div>
 
-        {/* QUICK STATS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-800">
                 <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Brands</p>
@@ -106,7 +103,6 @@ export default function AdminOS() {
             </div>
         </div>
 
-        {/* DYNAMIC MODULE GRID */}
         <div>
             <h2 className="text-xl font-bold text-white mb-6">Installed Apps</h2>
             {modules.length === 0 ? (
@@ -139,7 +135,6 @@ export default function AdminOS() {
                 </div>
             )}
         </div>
-
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Shield, ShieldAlert, CheckCircle2, XCircle, UserCog, ArrowLeft, Unlock } from 'lucide-react';
+import { Loader2, Search, CheckCircle2, XCircle, UserCog, ArrowLeft, Unlock, Shield } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const supabase = createClient(
@@ -33,8 +33,7 @@ export default function UserManager() {
       .select('id, email, created_at, last_sign_in_at')
       .order('created_at', { ascending: false });
 
-    // 2. Fetch RBAC Roles (CORRECT SOURCE OF TRUTH)
-    // We join user_roles -> roles to get the actual role names
+    // 2. Fetch RBAC Roles
     const { data: userRoles } = await supabase
       .from('user_roles')
       .select('user_id, roles(name)');
@@ -47,18 +46,19 @@ export default function UserManager() {
     const merged = profiles?.map(p => {
         // Find Role
         const rbac = userRoles?.find(r => r.user_id === p.id);
-        const roleName = rbac?.roles?.name || 'USER'; // Default to USER if no RBAC entry
+        
+        // --- FIX: TYPE CASTING HERE ---
+        const roleName = (rbac as any)?.roles?.name || ((rbac as any)?.roles?.[0]?.name) || 'USER'; 
         
         const business = businesses?.find(b => b.profile_id === p.id);
         const creator = creators?.find(c => c.profile_id === p.id);
         
         return {
             ...p,
-            // Prioritize Business Name -> Channel Name -> Email
             display_name: business?.business_name || creator?.channel_name || p.email,
             verification_status: business?.verification_status || creator?.verification_status || 'N/A',
             type: business ? 'BRAND' : (creator ? 'CREATOR' : 'USER'),
-            role: roleName // Now using RBAC
+            role: roleName 
         };
     }) || [];
 
@@ -73,7 +73,6 @@ export default function UserManager() {
 
     try {
         if (action === 'BAN') {
-            // CALLS THE NEW "KILL SWITCH" DB FUNCTION
             const { error } = await supabase.rpc('ban_user_completely', { target_user_id: uid });
             if (error) throw error;
         }
@@ -89,14 +88,12 @@ export default function UserManager() {
         }
 
         if (action === 'PROMOTE') {
-            // RBAC Promotion
             const { data: role } = await supabase.from('roles').select('id').eq('name', 'SUPER_ADMIN').single();
             if (role) {
                 await supabase.from('user_roles').insert({ user_id: uid, role_id: role.id });
             }
         }
 
-        // CORRECT AUDIT LOGGING
         await supabase.rpc('log_admin_action', { 
             p_action: `USER_${action}`, 
             p_resource: 'users',
@@ -106,7 +103,7 @@ export default function UserManager() {
 
         alert(`User ${action} Successful`);
         setSelectedUser(null);
-        fetchUsers(); // Refresh list
+        fetchUsers(); 
 
     } catch (err: any) {
         alert("Error: " + err.message);
@@ -125,7 +122,6 @@ export default function UserManager() {
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* HEADER */}
         <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
                 <Button variant="ghost" className="text-slate-400 hover:text-white" onClick={() => window.location.href='/admin'}>
@@ -147,7 +143,6 @@ export default function UserManager() {
             </div>
         </div>
 
-        {/* USER LIST */}
         <div className="grid gap-4">
             {filteredUsers.map((user) => (
                 <Card key={user.id} className={`bg-slate-900 border transition-all ${user.verification_status === 'BANNED' ? 'border-red-900/50 opacity-75' : 'border-slate-800 hover:border-slate-700'}`}>
