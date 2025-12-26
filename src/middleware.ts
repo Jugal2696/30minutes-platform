@@ -8,6 +8,7 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  // ✅ HIGH SECURITY: Using SSR client for robust cookie handling
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -39,15 +40,17 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // 2. EMERGENCY KILL SWITCHES
+  // 2. EMERGENCY KILL SWITCHES (Database Check)
   try {
       const { data: controls } = await supabase.from('emergency_controls').select('*').single()
 
       if (controls) {
+        // A. Kill All Traffic
         if (controls.kill_all_traffic && path !== '/maintenance') {
           return NextResponse.redirect(new URL('/maintenance', request.url))
         }
 
+        // B. Kill Auth (Login/Signup)
         if (controls.kill_auth_system) {
            const isAuthRoute = path.startsWith('/login') || path.startsWith('/signup') || path.startsWith('/onboarding') || path.startsWith('/auth');
            const isLogout = path === '/auth/logout' || path === '/logout';
@@ -61,7 +64,7 @@ export async function middleware(request: NextRequest) {
       console.error("Middleware Safety Check Failed", e)
   }
 
-  // 3. PROTECTED ROUTES
+  // 3. PROTECTED ROUTES (Dashboard Security)
   if (path.startsWith('/dashboard')) {
     if (!user) {
       return NextResponse.redirect(new URL('/login', request.url))
