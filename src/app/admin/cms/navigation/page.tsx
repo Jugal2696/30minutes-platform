@@ -1,18 +1,15 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// ✅ FIX: Using the correct internal client to prevent loops and auth errors
+import { createClient } from '@/lib/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Plus, Trash2, Save, ArrowLeft, Menu, Columns, Link as LinkIcon } from 'lucide-react';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export default function NavigationBuilder() {
+  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -25,29 +22,34 @@ export default function NavigationBuilder() {
   }, []);
 
   async function init() {
-    // 1. RBAC Check
+    // 1. RBAC Check (Enforcing God Mode)
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = '/login'; return; }
     
-    // --- FIX: TYPE SAFE RBAC CHECK ---
-    const { data: roleData } = await supabase.from('user_roles').select('roles(name)').eq('user_id', user.id).single();
-    const roleName = (roleData as any)?.roles?.name || ((roleData as any)?.roles?.[0]?.name);
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
 
-    if (roleName !== 'SUPER_ADMIN') {
+    if (profile?.role !== 'SUPER_ADMIN' && profile?.role !== 'ADMIN') {
         window.location.href = '/admin';
         return;
     }
 
-    // 2. Fetch Data
-    const { data: nav } = await supabase.from('cms_navigation').select('*').order('order_index', { ascending: true });
-    if (nav) setNavItems(nav);
+    // 2. Fetch Data (Handling potential empty tables gracefully)
+    try {
+        const { data: nav } = await supabase.from('cms_navigation').select('*').order('order_index', { ascending: true });
+        if (nav) setNavItems(nav);
 
-    const { data: footer } = await supabase.from('cms_footer_links').select('*').order('order_index', { ascending: true });
-    if (footer) setFooterItems(footer);
-    
-    // 3. Fetch CMS Pages for Selector
-    const { data: pages } = await supabase.from('cms_pages').select('id, title, slug').eq('status', 'PUBLISHED');
-    if (pages) setAvailablePages(pages);
+        const { data: footer } = await supabase.from('cms_footer_links').select('*').order('order_index', { ascending: true });
+        if (footer) setFooterItems(footer);
+        
+        const { data: pages } = await supabase.from('cms_pages').select('id, title, slug').eq('status', 'PUBLISHED');
+        if (pages) setAvailablePages(pages);
+    } catch (error) {
+        console.error("Database fetch error:", error);
+    }
 
     setLoading(false);
   }
@@ -61,7 +63,6 @@ export default function NavigationBuilder() {
     const newItems = [...navItems];
     
     if (field === 'page_select') {
-        // ID Linking Logic
         if (value === '') {
             newItems[index].page_id = null;
         } else {
@@ -69,7 +70,7 @@ export default function NavigationBuilder() {
             if (page) {
                 newItems[index].page_id = page.id;
                 newItems[index].label = newItems[index].label || page.title;
-                newItems[index].url = `/${page.slug}`; // Fallback URL for UI display
+                newItems[index].url = `/${page.slug}`;
             }
         }
     } else {
@@ -115,14 +116,12 @@ export default function NavigationBuilder() {
   async function handleSave() {
     setSaving(true);
 
-    // Prepare Upserts (Remove 'isNew' flag and 'page_select' if present)
     const headerUpserts = navItems.map(({ isNew, page_select, ...item }) => item);
     const footerUpserts = footerItems.map(({ isNew, ...item }) => item);
 
     if (headerUpserts.length > 0) await supabase.from('cms_navigation').upsert(headerUpserts);
     if (footerUpserts.length > 0) await supabase.from('cms_footer_links').upsert(footerUpserts);
 
-    // Call Revalidate API
     try {
         await fetch('/api/revalidate', {
             method: 'POST',
