@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-// 👇 THIS IS THE ONLY CHANGE: Connecting to the correct engine so it doesn't crash
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -9,25 +8,27 @@ import {
   ShieldAlert, ArrowRight, ExternalLink, Menu, Scale, Globe 
 } from 'lucide-react';
 
-export default function AdminOS() {
-  // 👇 INITIALIZE ENGINE
-  const supabase = createClient();
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
+const iconMap: any = {
+  LayoutDashboard: <LayoutDashboard size={24} />,
+  Settings: <Settings size={24} />,
+  Users: <Users size={24} />,
+  FileText: <FileText size={24} />,
+  Flag: <Flag size={24} />,
+  ShieldAlert: <ShieldAlert size={24} />,
+  Menu: <Menu size={24} />,
+  Scale: <Scale size={24} />,
+  Globe: <Globe size={24} />
+};
+
+export default function AdminOS() {
   const [loading, setLoading] = useState(true);
   const [modules, setModules] = useState<any[]>([]);
-  const [stats, setStats] = useState({ businesses: 0, creators: 0 });
-
-  const iconMap: any = {
-    LayoutDashboard: <LayoutDashboard size={24} />,
-    Settings: <Settings size={24} />,
-    Users: <Users size={24} />,
-    FileText: <FileText size={24} />,
-    Flag: <Flag size={24} />,
-    ShieldAlert: <ShieldAlert size={24} />,
-    Menu: <Menu size={24} />,
-    Scale: <Scale size={24} />,
-    Globe: <Globe size={24} />
-  };
+  const [stats, setStats] = useState({ brands: 0, creators: 0 });
 
   useEffect(() => {
     checkAccess();
@@ -39,37 +40,31 @@ export default function AdminOS() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = '/login'; return; }
     
-    // Check Profile Role
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    
-    if (profile?.role !== 'SUPER_ADMIN' && profile?.role !== 'ADMIN') {
-         window.location.href = '/dashboard/business';
+    // FIX: Type casting to handle Supabase join array/object ambiguity
+    const { data: roleData } = await supabase.from('user_roles').select('roles(name)').eq('user_id', user.id).single();
+    const roleName = (roleData as any)?.roles?.name || ((roleData as any)?.roles?.[0]?.name);
+
+    if (roleName !== 'SUPER_ADMIN') {
+         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+         if (profile?.role !== 'ADMIN') window.location.href = '/dashboard/brand';
     }
   }
 
   async function fetchModules() {
-    try {
-        const { data } = await supabase
-            .from('admin_ui_modules')
-            .select('*')
-            .eq('is_visible', true)
-            .neq('route', '/admin')
-            .order('order_index', { ascending: true });
-        
-        if (data) setModules(data);
-    } catch (e) {
-        console.log("Modules table error", e);
-    }
+    const { data } = await supabase
+        .from('admin_ui_modules')
+        .select('*')
+        .eq('is_visible', true)
+        .neq('route', '/admin')
+        .order('order_index', { ascending: true });
+    
+    if (data) setModules(data);
   }
 
   async function fetchStats() {
-    try {
-        const { count: bCount } = await supabase.from('businesses').select('*', { count: 'exact', head: true });
-        const { count: cCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'CREATOR');
-        setStats({ businesses: bCount || 0, creators: cCount || 0 });
-    } catch (e) {
-        console.log("Stats error", e);
-    }
+    const { count: bCount } = await supabase.from('businesses').select('*', { count: 'exact', head: true });
+    const { count: cCount } = await supabase.from('creators').select('*', { count: 'exact', head: true });
+    setStats({ brands: bCount || 0, creators: cCount || 0 });
     setLoading(false);
   }
 
@@ -78,12 +73,10 @@ export default function AdminOS() {
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 p-8">
       <div className="max-w-7xl mx-auto space-y-10">
-        
-        {/* HEADER */}
         <div className="flex justify-between items-end border-b border-slate-800 pb-6">
             <div>
                 <h1 className="text-4xl font-black tracking-tight text-white mb-2">PLATFORM OS</h1>
-                <p className="text-slate-400 font-mono text-sm">v4.6.0 // BUSINESS ORIENTED</p>
+                <p className="text-slate-400 font-mono text-sm">v4.5.0 // GOD MODE ACTIVE</p>
             </div>
             <div className="flex gap-4">
                  <Button variant="outline" className="text-slate-900 border-slate-700 hover:bg-slate-800 hover:text-white" onClick={() => window.open('/', '_blank')}>
@@ -95,11 +88,10 @@ export default function AdminOS() {
             </div>
         </div>
 
-        {/* QUICK STATS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-800">
-                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Businesses</p>
-                <p className="text-3xl font-mono font-bold text-white mt-2">{stats.businesses}</p>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Brands</p>
+                <p className="text-3xl font-mono font-bold text-white mt-2">{stats.brands}</p>
             </div>
             <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-800">
                 <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Creators</p>
@@ -111,7 +103,6 @@ export default function AdminOS() {
             </div>
         </div>
 
-        {/* MODULE GRID */}
         <div>
             <h2 className="text-xl font-bold text-white mb-6">Installed Apps</h2>
             {modules.length === 0 ? (
