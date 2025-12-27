@@ -55,7 +55,7 @@ export default function BusinessDashboard() {
 
     if (bizError || !bizData) {
         console.error("DASHBOARD: Business Profile Missing", bizError);
-        // ✅ Stage 1: Identify that onboarding is needed
+        // ✅ Redirect Logic: If no profile, we need onboarding
         setBusiness({ verification_status: 'NOT_FOUND' });
         setLoading(false);
         return; 
@@ -71,7 +71,7 @@ export default function BusinessDashboard() {
     // 3. FETCH KPI DATA (Stage 3: Only if APPROVED)
     try {
         const [matches, intents, agreements] = await Promise.all([
-            supabase.from('match_scores').select('id, final_score, created_at:calculated_at', { count: 'exact' }).eq('business_id', bizData.id).gte('final_score', 60),
+            supabase.from('match_scores').select('id, final_score, calculated_at', { count: 'exact' }).eq('business_id', bizData.id).gte('final_score', 60),
             supabase.from('co_branding_intents').select('id, created_at, status', { count: 'exact' }).eq('receiver_business_id', bizData.id).eq('status', 'PENDING'),
             supabase.from('co_branding_agreements').select('id, started_at, status', { count: 'exact' }).or(`brand_a_id.eq.${bizData.id},brand_b_id.eq.${bizData.id}`).eq('status', 'ACTIVE')
         ]);
@@ -83,8 +83,9 @@ export default function BusinessDashboard() {
             activeAgreements: agreements.count || 0
         });
 
+        // Construct Feed
         const recentMatches = (matches.data || []).slice(0, 5).map(m => ({
-            type: 'MATCH', text: `New Match (${m.final_score}%)`, date: new Date(m.created_at), link: '/dashboard/business/discover'
+            type: 'MATCH', text: `New Match (${m.final_score}%)`, date: new Date(m.calculated_at), link: '/dashboard/business/discover'
         }));
         const recentProposals = (intents.data || []).slice(0, 5).map(i => ({
             type: 'PROPOSAL', text: 'New Proposal', date: new Date(i.created_at), link: '/dashboard/business/inbox'
@@ -113,7 +114,7 @@ export default function BusinessDashboard() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-900" /></div>;
 
-  // 🏛️ STAGE 1 & 2: ONBOARDING & VERIFICATION GATES
+  // 🏛️ STAGE 1 & 2: ONBOARDING & VERIFICATION GATES (Direct Redirect Connections)
   if (!business || business.verification_status !== 'APPROVED') {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-center">
@@ -123,31 +124,36 @@ export default function BusinessDashboard() {
             </div>
             <div className="space-y-3">
                 <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-                  {business?.verification_status === 'NOT_FOUND' ? "Start Onboarding" : "Verification in Progress"}
+                  {business?.verification_status === 'NOT_FOUND' ? "Complete Onboarding" : "Verification in Progress"}
                 </h1>
                 <p className="text-slate-500 text-sm leading-relaxed">
                   {business?.verification_status === 'NOT_FOUND' 
-                    ? "We couldn't find a business profile. Please complete your onboarding setup to access Mission Control." 
-                    : "Onboarding complete. Our team is now reviewing your profile. Access will be granted shortly."}
+                    ? "Welcome! Please finish setting up your business profile to access the Mission Control dashboard." 
+                    : "Onboarding complete. Our specialists are currently reviewing your profile for verification."}
                 </p>
             </div>
             <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center justify-between text-left">
                 <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Profile Stage</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Process Stage</p>
                     <p className="text-blue-600 font-bold text-sm">
                       {business?.verification_status === 'NOT_FOUND' ? 'ONBOARDING REQUIRED' : 'PENDING REVIEW'}
                     </p>
                 </div>
-                <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none px-3 py-1 font-bold uppercase tracking-tighter">
-                  {business?.verification_status === 'NOT_FOUND' ? 'STAGE 1' : 'STAGE 2'}
+                <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none px-3 py-1 font-bold">
+                  {business?.verification_status === 'NOT_FOUND' ? 'STEP 1' : 'STEP 2'}
                 </Badge>
             </div>
             <div className="flex flex-col gap-3 pt-4">
                 <Button 
-                  onClick={() => window.location.href='/onboarding/business'} 
+                  onClick={() => {
+                      const target = business?.verification_status === 'NOT_FOUND' 
+                        ? '/onboarding/role-selection' 
+                        : '/onboarding/pending';
+                      window.location.href = target;
+                  }} 
                   className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-6 rounded-xl group"
                 >
-                  {business?.verification_status === 'NOT_FOUND' ? "Go to Onboarding" : "View Submission"}
+                  {business?.verification_status === 'NOT_FOUND' ? "Start Onboarding" : "Check Status"}
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Button>
                 <Button onClick={handleSignOut} variant="ghost" className="text-slate-400 hover:text-slate-600">Sign Out</Button>
@@ -157,7 +163,6 @@ export default function BusinessDashboard() {
     );
   }
 
-  // 🚀 STAGE 3: MISSION CONTROL (APPROVED USERS ONLY)
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
       
