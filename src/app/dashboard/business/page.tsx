@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   Loader2, Target, Users, ShieldCheck, Briefcase, 
-  ExternalLink, Zap, FileText, Bell, AlertCircle, AlertTriangle 
+  ExternalLink, Zap, FileText, Bell, AlertCircle, AlertTriangle, Lock 
 } from 'lucide-react';
 
 export default function BusinessDashboard() {
@@ -41,7 +41,7 @@ export default function BusinessDashboard() {
         console.error("DASHBOARD: Auth Error or No User", authError);
         setDebugError("CRITICAL: User Not Found in Cookies. (Loop Stopped)");
         setLoading(false);
-        return; // 🛑 WE STOP HERE, BUT WE DO NOT REDIRECT.
+        return; 
     }
 
     console.log("DASHBOARD: User Found:", user.id);
@@ -57,15 +57,15 @@ export default function BusinessDashboard() {
         console.error("DASHBOARD: Business Profile Missing", bizError);
         setDebugError("User Authenticated, but Business Profile Missing.");
         setLoading(false);
-        return; // 🛑 WE STOP HERE, BUT WE DO NOT REDIRECT.
+        return; 
     }
 
-    if (bizData.verification_status !== 'APPROVED') {
-        setDebugError(`Business Found, but Status is: ${bizData.verification_status}`);
-        // We continue anyway to show the UI
-    }
-
+    // 🛑 JAIL CHECK: If not approved, we stop and show the Lock Screen
     setBusiness(bizData);
+    if (bizData.verification_status !== 'APPROVED') {
+        setLoading(false);
+        return; // UI logic below handles the Jail View
+    }
 
     // 3. FETCH KPI DATA (Only if we have a business)
     try {
@@ -82,7 +82,6 @@ export default function BusinessDashboard() {
             activeAgreements: agreements.count || 0
         });
 
-        // 4. CONSTRUCT FEED
         const recentMatches = (matches.data || []).slice(0, 5).map(m => ({
             type: 'MATCH', text: `New Match (${m.final_score}%)`, date: new Date(m.created_at), link: '/dashboard/business/discover'
         }));
@@ -113,10 +112,38 @@ export default function BusinessDashboard() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin" /></div>;
 
+  // ⛓️ VERIFICATION JAIL LOGIC
+  if (business && business.verification_status !== 'APPROVED') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-8 text-center">
+        <div className="max-w-md w-full space-y-8">
+            <div className="mx-auto h-24 w-24 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center shadow-[0_0_50px_-12px_rgba(234,179,8,0.3)]">
+                <Lock className="text-yellow-500 h-10 w-10 animate-pulse" />
+            </div>
+            <div className="space-y-2">
+                <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Verification Jail</h1>
+                <p className="text-slate-400 text-sm">Your business profile is currently in the review queue. Mission Control is locked until a Super Admin verifies your entity.</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-lg flex items-center justify-between text-left">
+                <div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">Current Status</p>
+                    <p className="text-yellow-500 font-mono text-xs">{business.verification_status}</p>
+                </div>
+                <Badge variant="outline" className="border-yellow-500/50 text-yellow-500 animate-pulse">PENDING</Badge>
+            </div>
+            <div className="flex flex-col gap-3 pt-4">
+                <Button onClick={handleSignOut} variant="outline" className="border-slate-800 text-slate-400 hover:bg-slate-900">Sign Out</Button>
+                <button onClick={() => window.location.href='/admin'} className="text-[10px] text-slate-600 hover:text-blue-500 uppercase tracking-widest font-bold transition-colors">Founder OS Access →</button>
+            </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
       
-      {/* 🛑 DEBUG BANNER: VISIBLE ONLY IF THERE IS AN ERROR */}
+      {/* 🛑 DEBUG BANNER */}
       {debugError && (
           <div className="bg-red-600 text-white p-4 font-bold text-center sticky top-0 z-[100] shadow-md flex items-center justify-center gap-2">
               <AlertTriangle className="h-6 w-6" />
@@ -125,7 +152,7 @@ export default function BusinessDashboard() {
       )}
 
       {/* 1. TOP NAV */}
-      <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-14 z-50 shadow-sm">
+      <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
             <div className="flex items-center gap-2">
                 <div className="h-8 w-8 bg-slate-900 rounded flex items-center justify-center text-white font-bold">B</div>
