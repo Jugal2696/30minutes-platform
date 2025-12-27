@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// ✅ CTO FIX: Switched to Cookie Client to stop loops
+import { createClient } from '@/lib/supabase/client'; 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -8,27 +9,25 @@ import {
   ShieldAlert, ArrowRight, ExternalLink, Menu, Scale, Globe 
 } from 'lucide-react';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-const iconMap: any = {
-  LayoutDashboard: <LayoutDashboard size={24} />,
-  Settings: <Settings size={24} />,
-  Users: <Users size={24} />,
-  FileText: <FileText size={24} />,
-  Flag: <Flag size={24} />,
-  ShieldAlert: <ShieldAlert size={24} />,
-  Menu: <Menu size={24} />,
-  Scale: <Scale size={24} />,
-  Globe: <Globe size={24} />
-};
-
 export default function AdminOS() {
   const [loading, setLoading] = useState(true);
   const [modules, setModules] = useState<any[]>([]);
   const [stats, setStats] = useState({ businesses: 0, creators: 0 });
+
+  // ✅ Initialize Cookie Client
+  const supabase = createClient();
+
+  const iconMap: any = {
+    LayoutDashboard: <LayoutDashboard size={24} />,
+    Settings: <Settings size={24} />,
+    Users: <Users size={24} />,
+    FileText: <FileText size={24} />,
+    Flag: <Flag size={24} />,
+    ShieldAlert: <ShieldAlert size={24} />,
+    Menu: <Menu size={24} />,
+    Scale: <Scale size={24} />,
+    Globe: <Globe size={24} />
+  };
 
   useEffect(() => {
     checkAccess();
@@ -40,31 +39,47 @@ export default function AdminOS() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = '/login'; return; }
     
-    // Type-safe RBAC Check
-    const { data: roleData } = await supabase.from('user_roles').select('roles(name)').eq('user_id', user.id).single();
-    const roleName = (roleData as any)?.roles?.name || ((roleData as any)?.roles?.[0]?.name);
+    // ✅ CTO FIX: Check PROFILES table (Where we ran the SQL script)
+    // The old code checked 'user_roles' which might be empty.
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
 
-    if (roleName !== 'SUPER_ADMIN') {
-         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-         if (profile?.role !== 'ADMIN') window.location.href = '/dashboard/business';
+    if (profile?.role !== 'SUPER_ADMIN' && profile?.role !== 'ADMIN') {
+         // Unauthorized? Kick them out.
+         window.location.href = '/dashboard/business';
     }
   }
 
   async function fetchModules() {
-    const { data } = await supabase
-        .from('admin_ui_modules')
-        .select('*')
-        .eq('is_visible', true)
-        .neq('route', '/admin')
-        .order('order_index', { ascending: true });
-    
-    if (data) setModules(data);
+    // We try to fetch modules. If table doesn't exist, we handle it gracefully.
+    try {
+        const { data, error } = await supabase
+            .from('admin_ui_modules')
+            .select('*')
+            .eq('is_visible', true)
+            .neq('route', '/admin') // Don't link to self
+            .order('order_index', { ascending: true });
+        
+        if (data) setModules(data);
+        if (error) console.error("Module Error:", error);
+    } catch (e) {
+        console.log("Modules table likely missing");
+    }
   }
 
   async function fetchStats() {
-    const { count: bCount } = await supabase.from('businesses').select('*', { count: 'exact', head: true });
-    const { count: cCount } = await supabase.from('creators').select('*', { count: 'exact', head: true });
-    setStats({ businesses: bCount || 0, creators: cCount || 0 });
+    try {
+        const { count: bCount } = await supabase.from('businesses').select('*', { count: 'exact', head: true });
+        // Check if creators table exists yet
+        const { count: cCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'CREATOR');
+        
+        setStats({ businesses: bCount || 0, creators: cCount || 0 });
+    } catch (e) {
+        console.log("Stats error");
+    }
     setLoading(false);
   }
 
@@ -90,7 +105,7 @@ export default function AdminOS() {
             </div>
         </div>
 
-        {/* QUICK STATS - REFACTORED LABELS */}
+        {/* QUICK STATS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-slate-900/50 p-6 rounded-lg border border-slate-800">
                 <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Businesses</p>
@@ -110,7 +125,10 @@ export default function AdminOS() {
         <div>
             <h2 className="text-xl font-bold text-white mb-6">Installed Apps</h2>
             {modules.length === 0 ? (
-                <div className="text-slate-500 italic">No modules registered. Run the SQL script.</div>
+                <div className="text-slate-500 italic border border-dashed border-slate-800 p-8 rounded text-center">
+                    System initialized. Modules table is empty.<br/>
+                    <span className="text-xs text-slate-600">Please run the SQL injection to install OS Modules.</span>
+                </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {modules.map((mod) => (
