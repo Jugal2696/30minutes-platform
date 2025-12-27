@@ -1,6 +1,5 @@
 "use client";
 import { useState } from 'react';
-// ✅ ADD THIS NEW IMPORT
 import { createClient } from '@/lib/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,31 +15,28 @@ export default function LoginPage() {
   async function handleAuth() {
     setLoading(true);
     if (isSignUp) {
-      // SIGN UP
-      const { error } = await supabase.auth.signUp({ 
-        email, 
-        password,
-      });
+      // SIGN UP FLOW
+      const { error } = await supabase.auth.signUp({ email, password });
       if (error) alert(error.message);
       else alert('Account created! Please check your email to confirm.');
     } else {
-      // SIGN IN
+      // SIGN IN FLOW
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
       if (error) {
         alert(error.message);
         setLoading(false);
         return;
       }
 
-      // 🔍 CHECK ROLE & REDIRECT
-      // 🔍 CHECK ROLE & REDIRECT
+      // 🔍 CTO AUDIT: STRICT ROLE REDIRECTION
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
         .single();
 
-      // ✅ FIX: Explicitly check for SUPER_ADMIN
+      // ✅ FIX: Prioritize SUPER_ADMIN access
       if (profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN') {
         window.location.href = '/admin';
       } else if (profile?.role === 'BUSINESS') {
@@ -50,14 +46,13 @@ export default function LoginPage() {
       } else if (profile?.role === 'UNASSIGNED') {
         window.location.href = '/onboarding/role-selection';
       } else {
-        // Fallback
+        // Default Safety Net
         window.location.href = '/onboarding/role-selection';
       }
     }
     setLoading(false);
   }
 
-  // Google Login Handler
   async function handleGoogleLogin() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
