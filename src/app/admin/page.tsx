@@ -19,7 +19,7 @@ export default function AdminOS() {
       label: 'CMS Engine', 
       desc: 'Manage navigation & pages',
       icon: <LayoutTemplate size={24} />, 
-      route: '/admin/cms',  // Matches your 'cms' folder
+      route: '/admin/cms/navigation',  // Matches your 'cms' folder
       category: 'CONTENT'
     },
     { 
