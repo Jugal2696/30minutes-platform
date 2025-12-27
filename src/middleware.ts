@@ -31,39 +31,16 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // This refreshes the session if needed
+  // 1. REFRESH SESSION (Critical)
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
-  // 1. ADMIN BYPASS & STATIC FILES
-  if (path.startsWith('/admin') || path.startsWith('/_next') || path.includes('.')) {
-    return response
-  }
-
-  // 2. PROTECTED ROUTES (Dashboard)
-  if (path.startsWith('/dashboard') || path.startsWith('/onboarding')) {
+  // 2. PROTECTED ROUTES ONLY
+  // We ONLY interfere if you try to go to the dashboard without a user.
+  // We DO NOT interfere with the login page anymore.
+  if (path.startsWith('/dashboard') || path.startsWith('/onboarding') || path.startsWith('/admin')) {
     if (!user) {
-      // Redirect to login if no user found
       return NextResponse.redirect(new URL('/login', request.url))
-    }
-  }
-
-  // 3. AUTH PAGE REDIRECT (Prevent logged-in users from seeing login page)
-  if (path === '/login' || path === '/signup') {
-    if (user) {
-      // If user is already logged in, send them to dashboard
-      // We check their role to decide WHICH dashboard
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-      
-      if (profile?.role === 'BRAND' || profile?.role === 'BUSINESS') {
-         return NextResponse.redirect(new URL('/dashboard/business', request.url))
-      } else if (profile?.role === 'CREATOR') {
-         return NextResponse.redirect(new URL('/dashboard/creator', request.url))
-      } else if (profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN') {
-         return NextResponse.redirect(new URL('/admin', request.url))
-      } else {
-         return NextResponse.redirect(new URL('/dashboard/business', request.url)) // Fallback
-      }
     }
   }
 
