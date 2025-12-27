@@ -1,44 +1,63 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// ✅ UPDATE: Using internal Cookie Client to prevent auth loops
+import { createClient } from '@/lib/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, XCircle, ArrowLeft, ShieldCheck, Briefcase, User } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, ArrowLeft, Briefcase, User } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export default function VerificationConsole() {
+  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [creators, setCreators] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchPending();
+    init();
   }, []);
+
+  async function init() {
+    // 1. ✅ UPDATE: GOD-MODE RBAC Check
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { window.location.href = '/login'; return; }
+    
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (profile?.role !== 'SUPER_ADMIN' && profile?.role !== 'ADMIN') {
+        window.location.href = '/admin';
+        return;
+    }
+
+    fetchPending();
+  }
 
   async function fetchPending() {
     setLoading(true);
     
-    // Fetch Pending Businesses
-    const { data: bData } = await supabase
-        .from('businesses')
-        .select('*')
-        .eq('verification_status', 'PENDING')
-        .order('created_at', { ascending: false });
-    if (bData) setBusinesses(bData);
+    try {
+        // Fetch Pending Businesses
+        const { data: bData } = await supabase
+            .from('businesses')
+            .select('*')
+            .eq('verification_status', 'PENDING')
+            .order('created_at', { ascending: false });
+        if (bData) setBusinesses(bData);
 
-    // Fetch Pending Creators
-    const { data: cData } = await supabase
-        .from('creators')
-        .select('*')
-        .eq('verification_status', 'PENDING')
-        .order('created_at', { ascending: false });
-    if (cData) setCreators(cData);
+        // Fetch Pending Creators
+        const { data: cData } = await supabase
+            .from('creators')
+            .select('*')
+            .eq('verification_status', 'PENDING')
+            .order('created_at', { ascending: false });
+        if (cData) setCreators(cData);
+    } catch (e) {
+        console.error("Fetch pending failed:", e);
+    }
 
     setLoading(false);
   }
@@ -49,6 +68,7 @@ export default function VerificationConsole() {
     if (error) {
         alert("Error: " + error.message);
     } else {
+        // Audit Log using RPC
         await supabase.rpc('log_admin_action', { 
             p_action: `VERIFY_${status}`, 
             p_resource: table, 
@@ -77,7 +97,6 @@ export default function VerificationConsole() {
             </div>
         </div>
 
-        {/* REFACTOR: Tabs renamed to 'businesses' */}
         <Tabs defaultValue="businesses" className="space-y-6">
             <TabsList className="bg-slate-900 border border-slate-800">
                 <TabsTrigger value="businesses">Businesses ({businesses.length})</TabsTrigger>
@@ -142,7 +161,6 @@ export default function VerificationConsole() {
                 ))}
             </TabsContent>
         </Tabs>
-
       </div>
     </div>
   );
