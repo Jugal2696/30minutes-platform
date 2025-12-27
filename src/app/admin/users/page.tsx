@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// ✅ UPDATE: Switched to internal Cookie Client to maintain session integrity
+import { createClient } from '@/lib/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,12 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, CheckCircle2, XCircle, UserCog, ArrowLeft, Unlock, Shield } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export default function UserManager() {
+  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -21,21 +18,36 @@ export default function UserManager() {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
+    checkAccess();
   }, []);
+
+  async function checkAccess() {
+    // 1. ✅ UPDATE: STRICT GOD-MODE ACCESS CONTROL
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { window.location.href = '/login'; return; }
+    
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (profile?.role !== 'SUPER_ADMIN' && profile?.role !== 'ADMIN') {
+        window.location.href = '/admin';
+        return;
+    }
+    fetchUsers();
+  }
 
   async function fetchUsers() {
     setLoading(true);
     
-    const { data: profiles } = await supabase.from('profiles').select('id, email, created_at, last_sign_in_at').order('created_at', { ascending: false });
-    const { data: userRoles } = await supabase.from('user_roles').select('user_id, roles(name)');
+    // FETCH MULTI-TABLE DATA FOR IDENTITY MERGING
+    const { data: profiles } = await supabase.from('profiles').select('id, email, created_at, role, last_sign_in_at').order('created_at', { ascending: false });
     const { data: businesses } = await supabase.from('businesses').select('profile_id, business_name, verification_status');
     const { data: creators } = await supabase.from('creators').select('profile_id, channel_name, verification_status');
 
     const merged = profiles?.map(p => {
-        const rbac = userRoles?.find(r => r.user_id === p.id);
-        const roleName = (rbac as any)?.roles?.name || ((rbac as any)?.roles?.[0]?.name) || 'USER'; 
-        
         const business = businesses?.find(b => b.profile_id === p.id);
         const creator = creators?.find(c => c.profile_id === p.id);
         
@@ -43,9 +55,8 @@ export default function UserManager() {
             ...p,
             display_name: business?.business_name || creator?.channel_name || p.email,
             verification_status: business?.verification_status || creator?.verification_status || 'N/A',
-            // REFACTOR: Use 'BUSINESS' instead of 'BRAND'
             type: business ? 'BUSINESS' : (creator ? 'CREATOR' : 'USER'),
-            role: roleName 
+            role: p.role || 'USER' // Using the native 'role' column from profiles
         };
     }) || [];
 
@@ -70,18 +81,15 @@ export default function UserManager() {
         }
 
         if (action === 'VERIFY') {
-            // REFACTOR: Logic uses 'BUSINESS' type now
             if (selectedUser.type === 'BUSINESS') await supabase.from('businesses').update({ verification_status: 'APPROVED' }).eq('profile_id', uid);
             if (selectedUser.type === 'CREATOR') await supabase.from('creators').update({ verification_status: 'APPROVED' }).eq('profile_id', uid);
         }
 
         if (action === 'PROMOTE') {
-            const { data: role } = await supabase.from('roles').select('id').eq('name', 'SUPER_ADMIN').single();
-            if (role) {
-                await supabase.from('user_roles').insert({ user_id: uid, role_id: role.id });
-            }
+            await supabase.from('profiles').update({ role: 'SUPER_ADMIN' }).eq('id', uid);
         }
 
+        // AUDIT LOG LOGIC
         await supabase.rpc('log_admin_action', { 
             p_action: `USER_${action}`, 
             p_resource: 'users',
@@ -110,47 +118,49 @@ export default function UserManager() {
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        <div className="flex justify-between items-center">
+        {/* TOP COMMAND BAR */}
+        <div className="flex justify-between items-center border-b border-slate-800 pb-6">
             <div className="flex items-center gap-4">
                 <Button variant="ghost" className="text-slate-400 hover:text-white" onClick={() => window.location.href='/admin'}>
                     <ArrowLeft size={20} className="mr-2"/> OS
                 </Button>
                 <div>
-                    <h1 className="text-3xl font-bold">User Command</h1>
-                    <p className="text-slate-400">Permissions & Security.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">User Command</h1>
+                    <p className="text-slate-500 font-mono text-xs uppercase tracking-widest tracking-tighter">Security // Permissions</p>
                 </div>
             </div>
             <div className="relative w-64">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
                 <Input 
                     placeholder="Search users..." 
-                    className="pl-8 bg-slate-900 border-slate-800 text-white"
+                    className="pl-8 bg-slate-900 border-slate-800 text-white focus:ring-blue-500"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                 />
             </div>
         </div>
 
+        {/* IDENTITY LIST */}
         <div className="grid gap-4">
             {filteredUsers.map((user) => (
                 <Card key={user.id} className={`bg-slate-900 border transition-all ${user.verification_status === 'BANNED' ? 'border-red-900/50 opacity-75' : 'border-slate-800 hover:border-slate-700'}`}>
                     <CardContent className="p-6 flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <div className={`h-12 w-12 rounded-full flex items-center justify-center font-bold text-lg ${
-                                user.role === 'SUPER_ADMIN' ? 'bg-purple-900 text-purple-200' : 'bg-slate-800 text-slate-400'
+                            <div className={`h-12 w-12 rounded-full flex items-center justify-center font-bold text-lg border ${
+                                user.role === 'SUPER_ADMIN' ? 'bg-purple-900/20 text-purple-400 border-purple-800' : 'bg-slate-800 text-slate-400 border-slate-700'
                             }`}>
                                 {user.display_name?.charAt(0).toUpperCase()}
                             </div>
                             <div>
                                 <h3 className="font-bold text-lg text-white flex items-center gap-2">
                                     {user.display_name}
-                                    {user.role === 'SUPER_ADMIN' && <Badge className="bg-purple-600 hover:bg-purple-600">GOD MODE</Badge>}
+                                    {(user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') && <Badge className="bg-blue-600 hover:bg-blue-600">GOD MODE</Badge>}
                                 </h3>
-                                <p className="text-sm text-slate-500 font-mono">{user.email}</p>
+                                <p className="text-sm text-slate-500 font-mono tracking-tight">{user.email}</p>
                                 <div className="flex gap-2 mt-1">
-                                    <Badge variant="outline" className="text-xs border-slate-700 text-slate-400">{user.type}</Badge>
+                                    <Badge variant="outline" className="text-[10px] border-slate-700 text-slate-400 uppercase">{user.type}</Badge>
                                     <Badge 
-                                        className={`${
+                                        className={`text-[10px] uppercase ${
                                             user.verification_status === 'APPROVED' ? 'bg-green-900/50 text-green-400' : 
                                             user.verification_status === 'BANNED' ? 'bg-red-900/50 text-red-400' : 'bg-yellow-900/50 text-yellow-400'
                                         }`}
@@ -167,7 +177,7 @@ export default function UserManager() {
                                     <UserCog size={16} className="mr-2"/> Manage
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent className="bg-slate-900 border-slate-800 text-slate-100">
+                            <DialogContent className="bg-slate-900 border-slate-800 text-slate-100 shadow-2xl">
                                 <DialogHeader>
                                     <DialogTitle>Manage User: {user.display_name}</DialogTitle>
                                 </DialogHeader>
@@ -180,7 +190,7 @@ export default function UserManager() {
                                         <CheckCircle2 size={18} className="mr-2"/> Force Verify (Approve)
                                     </Button>
                                     <Button 
-                                        className="bg-purple-600 hover:bg-purple-700 justify-start"
+                                        className="bg-blue-600 hover:bg-blue-700 justify-start"
                                         onClick={() => handleAction('PROMOTE')}
                                         disabled={user.role === 'SUPER_ADMIN' || processing}
                                     >
