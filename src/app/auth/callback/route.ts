@@ -37,7 +37,33 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      // Success! Redirect to dashboard with the cookie set
+      // 🔍 CTO UPDATE: ROLE-BASED ARCHITECTURAL ROUTING
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+
+        // 🏆 PRIORITY 1: GOD MODE (SUPER_ADMIN)
+        if (profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN') {
+          return NextResponse.redirect(`${origin}/admin`)
+        }
+
+        // 🏆 PRIORITY 2: BUSINESS DASHBOARD
+        if (profile?.role === 'BUSINESS') {
+          return NextResponse.redirect(`${origin}/dashboard/business`)
+        }
+
+        // 🏆 PRIORITY 3: CREATOR DASHBOARD
+        if (profile?.role === 'CREATOR') {
+          return NextResponse.redirect(`${origin}/dashboard/creator`)
+        }
+      }
+
+      // Success fallback! Redirect to dashboard with the cookie set
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
