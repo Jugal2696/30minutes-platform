@@ -33,21 +33,24 @@ export default function LoginPage() {
       }
 
       // 🔍 CHECK ROLE & REDIRECT
+      // 🔍 CHECK ROLE & REDIRECT
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
         .single();
 
-      if (profile?.role === 'UNASSIGNED') {
-        window.location.href = '/onboarding/role-selection';
+      // ✅ FIX: Explicitly check for SUPER_ADMIN
+      if (profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN') {
+        window.location.href = '/admin';
       } else if (profile?.role === 'BUSINESS') {
         window.location.href = '/dashboard/business';
       } else if (profile?.role === 'CREATOR') {
         window.location.href = '/dashboard/creator';
-      } else if (profile?.role === 'ADMIN') {
-        window.location.href = '/admin';
+      } else if (profile?.role === 'UNASSIGNED') {
+        window.location.href = '/onboarding/role-selection';
       } else {
+        // Fallback
         window.location.href = '/onboarding/role-selection';
       }
     }
