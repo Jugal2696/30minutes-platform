@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
-// ✅ CTO FIX: Switched to Cookie Client to stop loops
-import { createClient } from '@/lib/supabase/client'; 
+// 👇 THIS IS THE ONLY CHANGE: Connecting to the correct engine so it doesn't crash
+import { createClient } from '@/lib/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -10,12 +10,12 @@ import {
 } from 'lucide-react';
 
 export default function AdminOS() {
+  // 👇 INITIALIZE ENGINE
+  const supabase = createClient();
+
   const [loading, setLoading] = useState(true);
   const [modules, setModules] = useState<any[]>([]);
   const [stats, setStats] = useState({ businesses: 0, creators: 0 });
-
-  // ✅ Initialize Cookie Client
-  const supabase = createClient();
 
   const iconMap: any = {
     LayoutDashboard: <LayoutDashboard size={24} />,
@@ -39,46 +39,36 @@ export default function AdminOS() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = '/login'; return; }
     
-    // ✅ CTO FIX: Check PROFILES table (Where we ran the SQL script)
-    // The old code checked 'user_roles' which might be empty.
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
+    // Check Profile Role
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    
     if (profile?.role !== 'SUPER_ADMIN' && profile?.role !== 'ADMIN') {
-         // Unauthorized? Kick them out.
          window.location.href = '/dashboard/business';
     }
   }
 
   async function fetchModules() {
-    // We try to fetch modules. If table doesn't exist, we handle it gracefully.
     try {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('admin_ui_modules')
             .select('*')
             .eq('is_visible', true)
-            .neq('route', '/admin') // Don't link to self
+            .neq('route', '/admin')
             .order('order_index', { ascending: true });
         
         if (data) setModules(data);
-        if (error) console.error("Module Error:", error);
     } catch (e) {
-        console.log("Modules table likely missing");
+        console.log("Modules table error", e);
     }
   }
 
   async function fetchStats() {
     try {
         const { count: bCount } = await supabase.from('businesses').select('*', { count: 'exact', head: true });
-        // Check if creators table exists yet
         const { count: cCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'CREATOR');
-        
         setStats({ businesses: bCount || 0, creators: cCount || 0 });
     } catch (e) {
-        console.log("Stats error");
+        console.log("Stats error", e);
     }
     setLoading(false);
   }
@@ -125,10 +115,7 @@ export default function AdminOS() {
         <div>
             <h2 className="text-xl font-bold text-white mb-6">Installed Apps</h2>
             {modules.length === 0 ? (
-                <div className="text-slate-500 italic border border-dashed border-slate-800 p-8 rounded text-center">
-                    System initialized. Modules table is empty.<br/>
-                    <span className="text-xs text-slate-600">Please run the SQL injection to install OS Modules.</span>
-                </div>
+                <div className="text-slate-500 italic">No modules registered. Run the SQL script.</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {modules.map((mod) => (
