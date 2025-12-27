@@ -31,19 +31,12 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // 1. REFRESH SESSION (Critical)
-  const { data: { user } } = await supabase.auth.getUser()
-  const path = request.nextUrl.pathname
+  // Refresh session to keep cookie alive
+  await supabase.auth.getUser()
 
-  // 2. PROTECTED ROUTES ONLY
-  // We ONLY interfere if you try to go to the dashboard without a user.
-  // We DO NOT interfere with the login page anymore.
-  if (path.startsWith('/dashboard') || path.startsWith('/onboarding') || path.startsWith('/admin')) {
-    if (!user) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-  }
-
+  // 🛑 REDIRECTS DISABLED FOR DEBUGGING
+  // We are letting EVERYONE in to find the root cause.
+  
   return response
 }
 
