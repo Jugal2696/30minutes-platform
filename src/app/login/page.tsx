@@ -19,18 +19,13 @@ export default function LoginPage() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   // AUTO-ROUTING LOGIC
-  useEffect(() => {
-    async function checkSession() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // User is already logged in (e.g. from Google). Check role.
-        await checkRoleAndRedirect(session.user.id);
-      } else {
-        setCheckingSession(false);
-      }
-    }
-    checkSession();
-  }, []);
+ const handleLogin = async () => {
+  // For Email/Password
+  const { error } = await supabase.auth.signInWithPassword({ ... })
+  if (!error) {
+      window.location.href = '/dashboard' // Force hard reload to update cookies
+  }
+}
 
   async function checkRoleAndRedirect(userId: string) {
     setLoading(true);
