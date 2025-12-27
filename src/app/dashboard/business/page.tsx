@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   Loader2, Target, Users, ShieldCheck, Briefcase, 
-  ExternalLink, Zap, FileText, Bell, AlertCircle, AlertTriangle, Lock 
+  ExternalLink, Zap, FileText, Bell, AlertCircle, AlertTriangle, Clock 
 } from 'lucide-react';
 
 export default function BusinessDashboard() {
@@ -39,7 +39,7 @@ export default function BusinessDashboard() {
     
     if (authError || !user) {
         console.error("DASHBOARD: Auth Error or No User", authError);
-        setDebugError("CRITICAL: User Not Found in Cookies. (Loop Stopped)");
+        setDebugError("CRITICAL: User Not Found. Please sign in.");
         setLoading(false);
         return; 
     }
@@ -55,14 +55,14 @@ export default function BusinessDashboard() {
 
     if (bizError || !bizData) {
         console.error("DASHBOARD: Business Profile Missing", bizError);
-        // ✅ CTO FIX: We set an empty business object with a 'LOCKED' status to trigger Jail
+        // ✅ CTO FIX: Direct connection to onboarding logic
         setBusiness({ verification_status: 'NOT_FOUND' });
-        setDebugError("User Authenticated, but Business Profile Missing.");
+        setDebugError("Profile Incomplete. Please finish onboarding.");
         setLoading(false);
         return; 
     }
 
-    // 🛑 JAIL CHECK: If not approved, we stop and show the Lock Screen
+    // 🛑 ACCESS CHECK: If not approved, show the professional Verification view
     setBusiness(bizData);
     if (bizData.verification_status !== 'APPROVED') {
         setLoading(false);
@@ -112,35 +112,43 @@ export default function BusinessDashboard() {
     window.location.href = '/login';
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-900" /></div>;
 
-  // ⛓️ VERIFICATION JAIL LOGIC (HARDENED)
+  // 🏛️ PROFESSIONAL VERIFICATION IN PROGRESS
   if (!business || business.verification_status !== 'APPROVED') {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-8 text-center">
-        <div className="max-w-md w-full space-y-8">
-            <div className="mx-auto h-24 w-24 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center shadow-[0_0_50px_-12px_rgba(239,68,68,0.3)]">
-                <Lock className="text-red-500 h-10 w-10 animate-pulse" />
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-center">
+        <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-sm border border-slate-200">
+            <div className="mx-auto h-20 w-20 bg-blue-50 rounded-full flex items-center justify-center">
+                <Clock className="text-blue-600 h-10 w-10 animate-pulse" />
             </div>
-            <div className="space-y-2">
-                <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Verification Jail</h1>
-                <p className="text-slate-400 text-sm">
+            <div className="space-y-3">
+                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+                  {business?.verification_status === 'NOT_FOUND' ? "Complete Onboarding" : "Verification in Progress"}
+                </h1>
+                <p className="text-slate-500 text-sm leading-relaxed">
                   {business?.verification_status === 'NOT_FOUND' 
-                    ? "No Business Profile found. You must complete onboarding before accessing Mission Control." 
-                    : "Your business profile is currently in the review queue. Mission Control is locked until verified."}
+                    ? "To access Mission Control, please complete your business profile registration." 
+                    : "Our team is currently reviewing your documentation. Access will be granted shortly."}
                 </p>
             </div>
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-lg flex items-center justify-between text-left">
+            <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center justify-between text-left">
                 <div>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase">Current Status</p>
-                    <p className="text-red-500 font-mono text-xs">{business?.verification_status || 'MISSING'}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Profile Status</p>
+                    <p className="text-blue-600 font-bold text-sm">
+                      {business?.verification_status === 'NOT_FOUND' ? 'INCOMPLETE' : 'PENDING REVIEW'}
+                    </p>
                 </div>
-                <Badge variant="outline" className="border-red-500/50 text-red-500 animate-pulse uppercase">Locked</Badge>
+                <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none px-3 py-1 font-bold">LOCKED</Badge>
             </div>
             <div className="flex flex-col gap-3 pt-4">
-                <Button onClick={() => window.location.href='/onboarding/business'} className="bg-blue-600 hover:bg-blue-700">Complete Onboarding</Button>
-                <Button onClick={handleSignOut} variant="outline" className="border-slate-800 text-slate-400 hover:bg-slate-900">Sign Out</Button>
-                <button onClick={() => window.location.href='/admin'} className="text-[10px] text-slate-600 hover:text-blue-500 uppercase tracking-widest font-bold transition-colors pt-2">Founder OS Access →</button>
+                <Button 
+                  onClick={() => window.location.href='/onboarding/business'} 
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-6 rounded-xl"
+                >
+                  {business?.verification_status === 'NOT_FOUND' ? "Finish Registration" : "Update Profile"}
+                </Button>
+                <Button onClick={handleSignOut} variant="ghost" className="text-slate-400 hover:text-slate-600">Sign Out</Button>
             </div>
         </div>
       </div>
@@ -154,7 +162,7 @@ export default function BusinessDashboard() {
       {debugError && (
           <div className="bg-red-600 text-white p-4 font-bold text-center sticky top-0 z-[100] shadow-md flex items-center justify-center gap-2">
               <AlertTriangle className="h-6 w-6" />
-              <span>DEBUG MODE: {debugError}</span>
+              <span>SYSTEM: {debugError}</span>
           </div>
       )}
 
@@ -197,8 +205,8 @@ export default function BusinessDashboard() {
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><ShieldCheck size={20}/> Account Health</h2>
                 <Card>
                     <CardContent className="p-6 space-y-6">
-                        <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Verification</span><Badge className="bg-green-100 text-green-700">Verified</Badge></div>
-                        <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Co-Branding</span>{business?.co_branding_enabled ? <Badge className="bg-green-100 text-green-700">Active</Badge> : <Badge variant="secondary">Disabled</Badge>}</div>
+                        <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Verification</span><Badge className="bg-green-100 text-green-700 border-none font-bold">VERIFIED</Badge></div>
+                        <div className="flex justify-between items-center"><span className="text-sm font-medium text-slate-600">Co-Branding</span>{business?.co_branding_enabled ? <Badge className="bg-green-100 text-green-700 border-none font-bold">ACTIVE</Badge> : <Badge variant="secondary">DISABLED</Badge>}</div>
                         <div className="pt-4 border-t border-slate-100">
                              <div className="flex gap-3 items-center mb-2">
                                 <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600"><Briefcase size={18} /></div>
