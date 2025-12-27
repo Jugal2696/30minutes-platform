@@ -55,6 +55,8 @@ export default function BusinessDashboard() {
 
     if (bizError || !bizData) {
         console.error("DASHBOARD: Business Profile Missing", bizError);
+        // ✅ CTO FIX: We set an empty business object with a 'LOCKED' status to trigger Jail
+        setBusiness({ verification_status: 'NOT_FOUND' });
         setDebugError("User Authenticated, but Business Profile Missing.");
         setLoading(false);
         return; 
@@ -64,7 +66,7 @@ export default function BusinessDashboard() {
     setBusiness(bizData);
     if (bizData.verification_status !== 'APPROVED') {
         setLoading(false);
-        return; // UI logic below handles the Jail View
+        return; 
     }
 
     // 3. FETCH KPI DATA (Only if we have a business)
@@ -112,28 +114,33 @@ export default function BusinessDashboard() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin" /></div>;
 
-  // ⛓️ VERIFICATION JAIL LOGIC
-  if (business && business.verification_status !== 'APPROVED') {
+  // ⛓️ VERIFICATION JAIL LOGIC (HARDENED)
+  if (!business || business.verification_status !== 'APPROVED') {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-8 text-center">
         <div className="max-w-md w-full space-y-8">
-            <div className="mx-auto h-24 w-24 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center shadow-[0_0_50px_-12px_rgba(234,179,8,0.3)]">
-                <Lock className="text-yellow-500 h-10 w-10 animate-pulse" />
+            <div className="mx-auto h-24 w-24 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center shadow-[0_0_50px_-12px_rgba(239,68,68,0.3)]">
+                <Lock className="text-red-500 h-10 w-10 animate-pulse" />
             </div>
             <div className="space-y-2">
                 <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Verification Jail</h1>
-                <p className="text-slate-400 text-sm">Your business profile is currently in the review queue. Mission Control is locked until a Super Admin verifies your entity.</p>
+                <p className="text-slate-400 text-sm">
+                  {business?.verification_status === 'NOT_FOUND' 
+                    ? "No Business Profile found. You must complete onboarding before accessing Mission Control." 
+                    : "Your business profile is currently in the review queue. Mission Control is locked until verified."}
+                </p>
             </div>
             <div className="bg-slate-900 border border-slate-800 p-4 rounded-lg flex items-center justify-between text-left">
                 <div>
                     <p className="text-[10px] font-bold text-slate-500 uppercase">Current Status</p>
-                    <p className="text-yellow-500 font-mono text-xs">{business.verification_status}</p>
+                    <p className="text-red-500 font-mono text-xs">{business?.verification_status || 'MISSING'}</p>
                 </div>
-                <Badge variant="outline" className="border-yellow-500/50 text-yellow-500 animate-pulse">PENDING</Badge>
+                <Badge variant="outline" className="border-red-500/50 text-red-500 animate-pulse uppercase">Locked</Badge>
             </div>
             <div className="flex flex-col gap-3 pt-4">
+                <Button onClick={() => window.location.href='/onboarding/business'} className="bg-blue-600 hover:bg-blue-700">Complete Onboarding</Button>
                 <Button onClick={handleSignOut} variant="outline" className="border-slate-800 text-slate-400 hover:bg-slate-900">Sign Out</Button>
-                <button onClick={() => window.location.href='/admin'} className="text-[10px] text-slate-600 hover:text-blue-500 uppercase tracking-widest font-bold transition-colors">Founder OS Access →</button>
+                <button onClick={() => window.location.href='/admin'} className="text-[10px] text-slate-600 hover:text-blue-500 uppercase tracking-widest font-bold transition-colors pt-2">Founder OS Access →</button>
             </div>
         </div>
       </div>
@@ -159,7 +166,7 @@ export default function BusinessDashboard() {
                 <span className="font-bold text-lg tracking-tight">Mission Control</span>
             </div>
             <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-slate-500 hidden md:inline">{business?.business_name || "Guest Mode"}</span>
+                <span className="text-sm font-medium text-slate-500 hidden md:inline">{business?.business_name}</span>
                 <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-red-500 hover:text-red-600 hover:bg-red-50">Sign Out</Button>
             </div>
         </div>
