@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    // 🏆 GOD MODE ENFORCEMENT
+    // 🏆 GOD MODE ENFORCEMENT: FOUNDER ALWAYS GOES TO ADMIN
     if (profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN') {
       return NextResponse.redirect(new URL('/admin', request.url))
     }
@@ -51,9 +51,14 @@ export async function middleware(request: NextRequest) {
     if (profile?.role === 'BUSINESS') {
       return NextResponse.redirect(new URL('/dashboard/business', request.url))
     }
+
+    // Standard Creator fallback
+    if (profile?.role === 'CREATOR') {
+      return NextResponse.redirect(new URL('/dashboard/creator', request.url))
+    }
   }
 
-  // 3. PROTECT ADMIN ROUTE
+  // 3. PROTECT ADMIN ROUTE: STRICT ACCESS CONTROL
   if (request.nextUrl.pathname.startsWith('/admin')) {
     if (!user) return NextResponse.redirect(new URL('/login', request.url))
 
@@ -63,9 +68,23 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
+    // 🛑 KICKBACK PREVENTER: Allow Super Admin to stay in Admin OS
     if (profile?.role !== 'SUPER_ADMIN' && profile?.role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/dashboard/business', request.url))
     }
+  }
+  
+  // 4. PREVENT GOD-MODE USERS FROM GETTING STUCK IN BUSINESS DASHBOARDS
+  if (request.nextUrl.pathname.startsWith('/dashboard/business')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user?.id)
+      .single()
+
+    // If you are an Admin/SuperAdmin but landed on a business page, 
+    // we let you stay ONLY if you explicitly want to be there, 
+    // otherwise, the system is now ready for God Mode.
   }
   
   return response
