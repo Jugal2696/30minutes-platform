@@ -1,17 +1,14 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// ✅ UPDATE: Switched to internal Cookie Client to prevent loops
+import { createClient } from '@/lib/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Save, ArrowLeft, Settings as SettingsIcon, Palette, Globe } from 'lucide-react';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export default function PlatformSettings() {
+  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState({
@@ -26,18 +23,30 @@ export default function PlatformSettings() {
   }, []);
 
   async function fetchSettings() {
-    // 1. RBAC Check
+    // 1. ✅ UPDATE: GOD-MODE RBAC Check
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { window.location.href = '/login'; return; }
     
-    // We fetch the singleton settings row (ID=1)
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    // If role is not SUPER_ADMIN or ADMIN, kick back to OS to prevent unauthorized access
+    if (profile?.role !== 'SUPER_ADMIN' && profile?.role !== 'ADMIN') {
+        window.location.href = '/admin';
+        return;
+    }
+
+    // 2. Fetch the singleton settings row (ID=1)
     const { data } = await supabase.from('platform_settings').select('*').single();
     if (data) {
         setConfig({
             site_name: data.site_name || '30Minutes',
             primary_color: data.primary_color || '#0f172a',
             logo_url: data.logo_url || '',
-            support_email: 'support@30minutes.in' // Placeholder if not in DB yet
+            support_email: 'support@30minutes.in'
         });
     }
     setLoading(false);
@@ -51,7 +60,7 @@ export default function PlatformSettings() {
     if (error) {
         alert("Error: " + error.message);
     } else {
-        // Audit Log
+        // Audit Log using RPC
         await supabase.rpc('log_admin_action', { 
             p_action: 'UPDATE_SETTINGS', 
             p_resource: 'platform_settings', 
