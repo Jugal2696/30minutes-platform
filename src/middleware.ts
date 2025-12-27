@@ -8,7 +8,6 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // ✅ HIGH SECURITY: Using SSR client for robust cookie handling
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -32,42 +31,39 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // This refreshes the session if needed
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
-  // 1. ADMIN BYPASS (Critical Safety)
+  // 1. ADMIN BYPASS & STATIC FILES
   if (path.startsWith('/admin') || path.startsWith('/_next') || path.includes('.')) {
     return response
   }
 
-  // 2. EMERGENCY KILL SWITCHES (Database Check)
-  try {
-      const { data: controls } = await supabase.from('emergency_controls').select('*').single()
-
-      if (controls) {
-        // A. Kill All Traffic
-        if (controls.kill_all_traffic && path !== '/maintenance') {
-          return NextResponse.redirect(new URL('/maintenance', request.url))
-        }
-
-        // B. Kill Auth (Login/Signup)
-        if (controls.kill_auth_system) {
-           const isAuthRoute = path.startsWith('/login') || path.startsWith('/signup') || path.startsWith('/onboarding') || path.startsWith('/auth');
-           const isLogout = path === '/auth/logout' || path === '/logout';
-           
-           if (isAuthRoute && !isLogout && path !== '/maintenance') {
-              return NextResponse.redirect(new URL('/maintenance?reason=auth_disabled', request.url))
-           }
-        }
-      }
-  } catch (e) {
-      console.error("Middleware Safety Check Failed", e)
+  // 2. PROTECTED ROUTES (Dashboard)
+  if (path.startsWith('/dashboard') || path.startsWith('/onboarding')) {
+    if (!user) {
+      // Redirect to login if no user found
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
   }
 
-  // 3. PROTECTED ROUTES (Dashboard Security)
-  if (path.startsWith('/dashboard')) {
-    if (!user) {
-      return NextResponse.redirect(new URL('/login', request.url))
+  // 3. AUTH PAGE REDIRECT (Prevent logged-in users from seeing login page)
+  if (path === '/login' || path === '/signup') {
+    if (user) {
+      // If user is already logged in, send them to dashboard
+      // We check their role to decide WHICH dashboard
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+      
+      if (profile?.role === 'BRAND' || profile?.role === 'BUSINESS') {
+         return NextResponse.redirect(new URL('/dashboard/business', request.url))
+      } else if (profile?.role === 'CREATOR') {
+         return NextResponse.redirect(new URL('/dashboard/creator', request.url))
+      } else if (profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN') {
+         return NextResponse.redirect(new URL('/admin', request.url))
+      } else {
+         return NextResponse.redirect(new URL('/dashboard/business', request.url)) // Fallback
+      }
     }
   }
 
