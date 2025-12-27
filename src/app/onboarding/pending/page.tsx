@@ -1,15 +1,14 @@
 "use client";
-import { createClient } from '@supabase/supabase-js';
+// ✅ CTO FIX: Switched to internal Cookie Client to prevent /login redirect loops
+import { createClient } from '@/lib/supabase/client'; 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, ShieldCheck } from 'lucide-react';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export default function PendingVerification() {
+  // ✅ Use our standardized client that handles SSR Cookies
+  const supabase = createClient();
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     window.location.href = '/login';
@@ -24,32 +23,34 @@ export default function PendingVerification() {
                <Clock size={32} />
             </div>
           </div>
-          <CardTitle className="text-slate-900 text-2xl font-bold">Verification In Progress</CardTitle>
-          <p className="text-slate-500">Application Reference: #PENDING</p>
+          <CardTitle className="text-slate-900 text-2xl font-bold tracking-tight">Verification In Progress</CardTitle>
+          <p className="text-slate-500 text-xs font-mono uppercase tracking-widest">Application Status: #PENDING</p>
         </CardHeader>
         <CardContent className="space-y-6 text-center">
           
           <div className="bg-yellow-50 p-4 rounded-lg text-left text-sm text-yellow-800 border border-yellow-200">
-            <p className="font-bold flex items-center gap-2 mb-2">
+            <p className="font-bold flex items-center gap-2 mb-2 uppercase text-[10px] tracking-widest">
               <ShieldCheck size={16} /> Trust & Safety Protocol
             </p>
-            <p>
-              To maintain the integrity of our marketplace, all business profiles undergo a strict manual review. 
-              This process typically takes 24-48 hours.
+            <p className="leading-relaxed">
+              To maintain the integrity of 30Minutes Market, all business profiles undergo manual review. 
+              Our team will verify your entity within 24-48 hours.
             </p>
           </div>
 
           <div className="space-y-2">
-            <p className="text-slate-600 text-sm">
-              We will notify you via email once your access is approved.
-              You cannot access the dashboard until then.
+            <p className="text-slate-600 text-sm italic">
+              You will receive an email confirmation once your Mission Control access is granted.
             </p>
           </div>
 
-          <div className="pt-4 border-t border-slate-100">
-             <Button variant="outline" onClick={handleSignOut} className="w-full">
+          <div className="pt-4 border-t border-slate-100 flex flex-col gap-3">
+             <Button variant="outline" onClick={handleSignOut} className="w-full font-bold border-slate-300">
                 Sign Out
              </Button>
+             <button onClick={() => window.location.href = '/'} className="text-[10px] text-slate-400 hover:text-slate-900 uppercase font-bold transition-colors">
+                Return to Homepage
+             </button>
           </div>
 
         </CardContent>
