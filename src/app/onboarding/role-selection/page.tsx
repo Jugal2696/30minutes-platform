@@ -97,15 +97,15 @@ export default function RoleSelection() {
                {/* Crown/Brand Icon */}
                <Crown size={24} />
             </div>
-            {/* UI SAYS BRAND */}
-            <h3 className="text-xl font-bold text-slate-900 mb-2">I am a Brand</h3>
+            {/* UI SAYS BUSINESS */}
+            <h3 className="text-xl font-bold text-slate-900 mb-2">I am a Business</h3>
             <p className="text-slate-500 text-sm leading-relaxed">
               For businesses, retailers, and agencies looking to launch campaigns and hire creators.
             </p>
             <ul className="mt-4 space-y-2 text-sm text-slate-600">
               <li className="flex items-center gap-2">✓ Launch Ad Campaigns</li>
               <li className="flex items-center gap-2">✓ Hire Creators & Influencers</li>
-              <li className="flex items-center gap-2">✓ Manage Brand Assets</li>
+              <li className="flex items-center gap-2">✓ Manage Business Assets</li>
             </ul>
           </Card>
 
