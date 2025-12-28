@@ -35,9 +35,8 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // 🛡️ [UPDATED] GLOBAL ROUTE PROTECTION
-  // 🚨 CTO FIX: We REMOVED 'onboarding' from this check.
-  // We allow the Onboarding page to load so the Client-Side Auth can take over.
-  // This breaks the infinite loop.
+  // 🚨 CTO FIX: We removed "|| request.nextUrl.pathname.startsWith('/onboarding')"
+  // This allows the Dashboard to successfully redirect users to Onboarding without the server blocking them.
   if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
      return NextResponse.redirect(new URL('/login', request.url))
   }
