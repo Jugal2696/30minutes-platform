@@ -1,3 +1,4 @@
+// v2.0 - Onboarding Route Sync
 "use client";
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client'; // ✅ Uses Cookie Client
