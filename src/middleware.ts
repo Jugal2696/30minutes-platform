@@ -34,6 +34,13 @@ export async function middleware(request: NextRequest) {
   // 1. GET AUTH USER
   const { data: { user } } = await supabase.auth.getUser()
 
+  // 🛡️ [NEW] GLOBAL ROUTE PROTECTION: Fixes the Onboarding Loop
+  // This ensures that anyone trying to visit dashboard or onboarding MUST be logged in.
+  // This forces the cookie session to refresh successfully.
+  if ((request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/onboarding')) && !user) {
+     return NextResponse.redirect(new URL('/login', request.url))
+  }
+
   // 2. LOGIC: IF LOGGED IN AND ON LOGIN PAGE, MOVE TO CORRECT DASHBOARD
   if (user && request.nextUrl.pathname === '/login') {
     const { data: profile } = await supabase
@@ -81,10 +88,8 @@ export async function middleware(request: NextRequest) {
       .select('role')
       .eq('id', user?.id)
       .single()
-
-    // If you are an Admin/SuperAdmin but landed on a business page, 
-    // we let you stay ONLY if you explicitly want to be there, 
-    // otherwise, the system is now ready for God Mode.
+      
+     // Logic remains open here as requested in your original code
   }
   
   return response
