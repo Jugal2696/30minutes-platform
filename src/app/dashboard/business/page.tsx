@@ -1,4 +1,3 @@
-// v2.0 - Onboarding Route Sync
 "use client";
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client'; // ✅ Uses Cookie Client
@@ -7,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   Loader2, Target, Users, ShieldCheck, Briefcase, 
-  ExternalLink, Zap, FileText, Bell, AlertCircle, AlertTriangle, Clock, ArrowRight 
+  ExternalLink, Zap, FileText, Bell, AlertTriangle
 } from 'lucide-react';
 
 export default function BusinessDashboard() {
@@ -39,37 +38,51 @@ export default function BusinessDashboard() {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-        console.error("DASHBOARD: Auth Error or No User", authError);
-        setDebugError("CRITICAL: User Not Found. Please sign in.");
-        setLoading(false);
+        window.location.href = '/login'; 
         return; 
     }
 
     console.log("DASHBOARD: User Found:", user.id);
 
-    // 2. GET BUSINESS PROFILE (Stage 1 Check)
+    // 2. GET BUSINESS PROFILE
+    // We check if the user has a profile linked to their ID
     const { data: bizData, error: bizError } = await supabase
       .from('businesses')
       .select('*')
       .eq('profile_id', user.id)
-      .maybeSingle(); // ✅ Optimized: Prevents crash if data doesn't exist yet
+      .maybeSingle();
 
-    if (bizError || !bizData) {
-        console.error("DASHBOARD: Business Profile Missing", bizError);
-        // ✅ Redirect Logic: If no profile, we need onboarding
-        setBusiness({ verification_status: 'NOT_FOUND' });
-        setLoading(false);
-        return; 
+    if (bizError) {
+        console.error("DASHBOARD DB ERROR:", bizError);
     }
 
-    // 🛑 ACCESS CHECK (Stage 2 Check)
-    setBusiness(bizData);
+    // 🛑 LOGIC GATE: AUTO-REDIRECTS (No UI Card)
+    
+    // CASE A: No Profile Data -> Send to Role Selection
+    if (!bizData) {
+        console.log("No profile found, redirecting to onboarding...");
+        window.location.href = '/onboarding/role-selection';
+        return;
+    }
+
+    // CASE B: Pending Verification -> Send to Pending Page
+    if (bizData.verification_status === 'PENDING') {
+        console.log("Profile pending, redirecting...");
+        window.location.href = '/onboarding/pending';
+        return;
+    }
+
+    // CASE C: Rejected or Incomplete -> Send to Business Form (using your specific folder spelling)
     if (bizData.verification_status !== 'APPROVED') {
-        setLoading(false);
-        return; 
+        console.log("Profile incomplete, redirecting to form...");
+        window.location.href = '/onboarding/buisness'; // ⚠️ Matches your folder spelling
+        return;
     }
 
-    // 3. FETCH KPI DATA (Stage 3: Only if APPROVED)
+    // CASE D: APPROVED -> Load Mission Control
+    setBusiness(bizData);
+
+    // 3. FETCH KPI DATA (Only runs if APPROVED)
     try {
         const [matches, intents, agreements] = await Promise.all([
             supabase.from('match_scores').select('id, final_score, calculated_at', { count: 'exact' }).eq('business_id', bizData.id).gte('final_score', 60),
@@ -84,7 +97,6 @@ export default function BusinessDashboard() {
             activeAgreements: agreements.count || 0
         });
 
-        // Construct Feed
         const recentMatches = (matches.data || []).slice(0, 5).map(m => ({
             type: 'MATCH', text: `New Match (${m.final_score}%)`, date: new Date(m.calculated_at), link: '/dashboard/business/discover'
         }));
@@ -113,57 +125,15 @@ export default function BusinessDashboard() {
     window.location.href = '/login';
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-900" /></div>;
+  // Loading Spinner acts as the "Redirecting..." state
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-slate-900 h-8 w-8 mb-2" />
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Verifying Clearance...</p>
+    </div>
+  );
 
-  // 🏛️ STAGE 1 & 2: ONBOARDING & VERIFICATION GATES (Direct Redirect Connections)
-  if (!business || business.verification_status !== 'APPROVED') {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-center">
-        <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-sm border border-slate-200">
-            <div className="mx-auto h-20 w-20 bg-blue-50 rounded-full flex items-center justify-center">
-                <Clock className="text-blue-600 h-10 w-10 animate-pulse" />
-            </div>
-            <div className="space-y-3">
-                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-                  {business?.verification_status === 'NOT_FOUND' ? "Complete Onboarding" : "Verification in Progress"}
-                </h1>
-                <p className="text-slate-500 text-sm leading-relaxed">
-                  {business?.verification_status === 'NOT_FOUND' 
-                    ? "Welcome! Please finish setting up your business profile to access the Mission Control dashboard." 
-                    : "Onboarding complete. Our specialists are currently reviewing your profile for verification."}
-                </p>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center justify-between text-left">
-                <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Process Stage</p>
-                    <p className="text-blue-600 font-bold text-sm">
-                      {business?.verification_status === 'NOT_FOUND' ? 'ONBOARDING REQUIRED' : 'PENDING REVIEW'}
-                    </p>
-                </div>
-                <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none px-3 py-1 font-bold">
-                  {business?.verification_status === 'NOT_FOUND' ? 'STEP 1' : 'STEP 2'}
-                </Badge>
-            </div>
-            <div className="flex flex-col gap-3 pt-4">
-                <Button 
-                  onClick={() => {
-                      const target = business?.verification_status === 'NOT_FOUND' 
-                        ? '/onboarding/role-selection' 
-                        : '/onboarding/pending';
-                      window.location.href = target;
-                  }} 
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-6 rounded-xl group"
-                >
-                  {business?.verification_status === 'NOT_FOUND' ? "Start Onboarding" : "Check Status"}
-                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Button>
-                <Button onClick={handleSignOut} variant="ghost" className="text-slate-400 hover:text-slate-600">Sign Out</Button>
-            </div>
-        </div>
-      </div>
-    );
-  }
-
+  // 🚀 MISSION CONTROL (Only renders for APPROVED users)
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
       
