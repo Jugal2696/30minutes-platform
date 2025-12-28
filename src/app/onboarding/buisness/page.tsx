@@ -123,6 +123,22 @@ export default function BrandOnboarding() {
         alert("Submission Error: " + error.message);
         setLoading(false);
     } else {
+        // 📧 SEND ADMIN NOTIFICATION (New Addition)
+        // This fires the email to founder30minutesmarket@gmail.com
+        try {
+            await fetch('/api/send-alert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'Business',
+                    name: formData.business_name,
+                    email: formData.business_email
+                })
+            });
+        } catch (err) {
+            console.error("Email Alert Failed", err);
+        }
+
         window.location.href = '/onboarding/pending';
     }
   }
