@@ -1,17 +1,19 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// ✅ CTO FIX: Switch to Shared Client to prevent Auth Loop
+import { createClient } from '@/lib/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Building2, Target, CheckCircle2, ChevronRight, ChevronLeft, ShieldCheck, Share2 } from 'lucide-react';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// 🛑 DELETED: Manual initialization that broke the session
+// const supabase = createClient(...);
 
 export default function BrandOnboarding() {
+  // ✅ INITIALIZE SHARED CLIENT
+  const supabase = createClient();
+
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -50,6 +52,8 @@ export default function BrandOnboarding() {
         .single();
       
       if (existing) {
+        // ✅ Logic Check: If data exists, go to pending. 
+        // Since we fixed the client, this redirect will now carry the cookie correctly.
         window.location.href = '/onboarding/pending';
       }
     }
@@ -140,13 +144,13 @@ export default function BrandOnboarding() {
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                     <div className="space-y-1">
                         <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                            <Building2 className="text-slate-400"/> Brand Identity
+                            <Building2 className="text-slate-400"/> Business Identity
                         </h2>
                         <p className="text-slate-500 text-sm">Establish your legal legitimacy on the platform.</p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="col-span-2 md:col-span-1">
-                            <label className="text-sm font-bold text-slate-700">Brand Name</label>
+                            <label className="text-sm font-bold text-slate-700">Business Name</label>
                             <Input name="business_name" value={formData.business_name} onChange={handleChange} placeholder="e.g. Nike" className="mt-1"/>
                         </div>
                         <div className="col-span-2 md:col-span-1">
@@ -223,10 +227,10 @@ export default function BrandOnboarding() {
                             <label className="text-sm font-bold text-slate-700 mb-2 block">Monthly Ad Spend Capacity</label>
                             <select name="monthly_budget" value={formData.monthly_budget} onChange={handleChange} className="w-full p-2 border rounded-md bg-white">
                                 <option value="">Select Range...</option>
-                                <option value="< $1k">Less than $1k / mo</option>
-                                <option value="$1k - $5k">$1k - $5k / mo</option>
-                                <option value="$5k - $20k">$5k - $20k / mo</option>
-                                <option value="$20k+">$20k+ / mo</option>
+                                <option value="< $1k">Less than Rs.1k / mo</option>
+                                <option value="$1k - $5k">Rs.1k - Rs.5k / mo</option>
+                                <option value="$5k - $20k">Rs.5k - Rs.20k / mo</option>
+                                <option value="$20k+">Rs.20k+ / mo</option>
                             </select>
                         </div>
                     </div>
