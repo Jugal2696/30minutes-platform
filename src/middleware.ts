@@ -1,4 +1,4 @@
-// v3.0 - FORCE REBUILD TIMESTAMP
+// v4.0 - FINAL LOOP FIX
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
