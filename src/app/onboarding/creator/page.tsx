@@ -1,17 +1,19 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// ✅ CTO FIX: Switch to Shared Client to sync cookies with Middleware
+import { createClient } from '@/lib/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { UserSquare2, BarChart3, MapPin, CheckCircle2, ChevronRight, ChevronLeft, ShieldCheck, Instagram, Youtube, Linkedin, Loader2 } from 'lucide-react';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// 🛑 DELETED: Manual client initialization
+// const supabase = createClient(...);
 
 export default function CreatorOnboarding() {
+  // ✅ INITIALIZE SHARED CLIENT
+  const supabase = createClient();
+
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -52,6 +54,7 @@ export default function CreatorOnboarding() {
         .single();
       
       if (existing) {
+        // ✅ Since we use the shared client, this redirect works perfectly now
         window.location.href = '/onboarding/pending';
       }
     }
