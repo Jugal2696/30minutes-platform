@@ -1,16 +1,18 @@
 "use client";
-import { createClient } from '@supabase/supabase-js';
+// ✅ CTO FIX: Switched to Shared Cookie Client to sync with Middleware
+import { createClient } from '@/lib/supabase/client';
 import { useState, useEffect } from 'react';
 import { CheckCircle2, Crown } from 'lucide-react'; 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// 🛑 REMOVED: Manual process.env client (This was causing the Auth Loop)
+// const supabase = createClient(...) 
 
 export default function RoleSelection() {
+  // ✅ Initialize the Cookie-Sync Client
+  const supabase = createClient();
+  
   const [selectedRole, setSelectedRole] = useState<'BUSINESS' | 'CREATOR' | null>(null);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -34,8 +36,8 @@ export default function RoleSelection() {
 
       if (profile && profile.role !== 'UNASSIGNED') {
          // Role is already locked. Redirect.
-         // NOTE: 'BUSINESS' role maps to 'Brand' dashboard
-         if (profile.role === 'BUSINESS') window.location.href = '/onboarding/brand';
+         // ✅ CTO FIX: Updated path to match your folder 'buisness'
+         if (profile.role === 'BUSINESS') window.location.href = '/onboarding/buisness';
          else if (profile.role === 'CREATOR') window.location.href = '/onboarding/creator';
          else if (profile.role === 'ADMIN') window.location.href = '/admin';
       } else {
@@ -61,9 +63,10 @@ export default function RoleSelection() {
       return;
     }
 
-    // 2. Redirect to 'Brand' onboarding
+    // 2. Redirect to correct onboarding folder
     if (selectedRole === 'BUSINESS') {
-      window.location.href = '/onboarding/brand';
+      // ✅ CTO FIX: Updated path to match your folder 'buisness'
+      window.location.href = '/onboarding/buisness';
     } else {
       window.location.href = '/onboarding/creator';
     }
