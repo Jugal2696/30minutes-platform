@@ -6,7 +6,7 @@ import { CheckCircle2, Crown } from 'lucide-react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-// 🛑 REMOVED: Manual process.env client (This was causing the Auth Loop)
+// �� REMOVED: Manual process.env client (This was causing the Auth Loop)
 // const supabase = createClient(...) 
 
 export default function RoleSelection() {
@@ -35,8 +35,8 @@ export default function RoleSelection() {
         .single();
 
       if (profile && profile.role !== 'UNASSIGNED') {
-         // Role is already locked. Redirect to Type Selection (Vision Alignment).
-         // ✅ CTO UPDATE: Route to Vertical Selection instead of direct form
+         // Role is already locked. Redirect.
+         // ✅ CTO FIX: Updated path to Vertical Selection (PRD Alignment)
          if (profile.role === 'BUSINESS') window.location.href = '/onboarding/business/select-type';
          else if (profile.role === 'CREATOR') window.location.href = '/onboarding/creator/select-type';
          else if (profile.role === 'ADMIN') window.location.href = '/admin';
@@ -63,12 +63,12 @@ export default function RoleSelection() {
       return;
     }
 
-    // 2. Redirect to Vertical Selection (PRD Module A & C Alignment)
+    // 2. Redirect to correct onboarding folder
     if (selectedRole === 'BUSINESS') {
-      // ✅ CTO UPDATE: Go to Inventory/Co-Brand Selection
+      // ✅ CTO FIX: Updated path to Business Vertical Selection
       window.location.href = '/onboarding/business/select-type';
     } else {
-      // ✅ CTO UPDATE: Go to Influencer/Star Tier Selection
+      // ✅ CTO FIX: Updated path to Creator Tier Selection
       window.location.href = '/onboarding/creator/select-type';
     }
   }
