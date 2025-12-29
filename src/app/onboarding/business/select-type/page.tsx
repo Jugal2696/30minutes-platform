@@ -1,9 +1,9 @@
 "use client";
 import { createClient } from '@/lib/supabase/client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Map, Zap, Users2, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Map, Zap, Users2, Newspaper, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function BusinessTypeSelection() {
   const supabase = createClient();
@@ -33,50 +33,77 @@ export default function BusinessTypeSelection() {
         
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-extrabold text-slate-900">Define Your Inventory</h1>
-          <p className="text-slate-500 text-lg">What kind of value are you bringing to the Omni-Market?</p>
+          <p className="text-slate-500 text-lg">Select the primary channel you operate in.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* CHANGED to grid-cols-2 for a balanced 2x2 layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
+            {/* 1. OOH */}
             <Card 
                 onClick={() => setSelectedType('OOH')}
-                className={`p-8 cursor-pointer border-2 relative hover:shadow-xl transition-all ${selectedType === 'OOH' ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600' : 'border-transparent hover:border-slate-200'}`}
+                className={`p-6 cursor-pointer border-2 relative hover:shadow-xl transition-all ${selectedType === 'OOH' ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600' : 'border-transparent hover:border-slate-200'}`}
             >
                 {selectedType === 'OOH' && <div className="absolute top-4 right-4 text-blue-600"><CheckCircle2 /></div>}
-                <div className="h-14 w-14 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-6">
-                    <Map size={28} />
+                <div className="flex items-center gap-4 mb-4">
+                    <div className="h-12 w-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
+                        <Map size={24} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">OOH & Billboards</h3>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">OOH & Billboards</h3>
                 <p className="text-slate-500 text-sm leading-relaxed">
-                    I own physical ad spaces, digital screens, hoardings, or transit media assets.
+                    Physical ad spaces, digital screens, hoardings, and transit media assets.
                 </p>
             </Card>
 
+            {/* 2. GUERRILLA */}
             <Card 
                 onClick={() => setSelectedType('GUERRILLA')}
-                className={`p-8 cursor-pointer border-2 relative hover:shadow-xl transition-all ${selectedType === 'GUERRILLA' ? 'border-orange-600 bg-orange-50 ring-1 ring-orange-600' : 'border-transparent hover:border-slate-200'}`}
+                className={`p-6 cursor-pointer border-2 relative hover:shadow-xl transition-all ${selectedType === 'GUERRILLA' ? 'border-orange-600 bg-orange-50 ring-1 ring-orange-600' : 'border-transparent hover:border-slate-200'}`}
             >
                 {selectedType === 'GUERRILLA' && <div className="absolute top-4 right-4 text-orange-600"><CheckCircle2 /></div>}
-                <div className="h-14 w-14 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center mb-6">
-                    <Zap size={28} />
+                <div className="flex items-center gap-4 mb-4">
+                    <div className="h-12 w-12 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center">
+                        <Zap size={24} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">Guerrilla Marketing</h3>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Guerrilla Marketing</h3>
                 <p className="text-slate-500 text-sm leading-relaxed">
-                    I manage street teams, flyer distribution, pop-up activations, or wild posting.
+                    Street teams, flyer distribution, pop-up activations, and wild posting.
                 </p>
             </Card>
 
+            {/* 3. PRINT MEDIA (NEW) */}
+            <Card 
+                onClick={() => setSelectedType('PRINT_MEDIA')}
+                className={`p-6 cursor-pointer border-2 relative hover:shadow-xl transition-all ${selectedType === 'PRINT_MEDIA' ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-transparent hover:border-slate-200'}`}
+            >
+                {selectedType === 'PRINT_MEDIA' && <div className="absolute top-4 right-4 text-indigo-600"><CheckCircle2 /></div>}
+                <div className="flex items-center gap-4 mb-4">
+                    <div className="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center">
+                        <Newspaper size={24} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">Print Ads</h3>
+                </div>
+                <p className="text-slate-500 text-sm leading-relaxed">
+                    Newspapers, magazines, local tabloids, and physical publications.
+                </p>
+            </Card>
+
+            {/* 4. CO-BRANDING */}
             <Card 
                 onClick={() => setSelectedType('CO_BRANDING')}
-                className={`p-8 cursor-pointer border-2 relative hover:shadow-xl transition-all ${selectedType === 'CO_BRANDING' ? 'border-green-600 bg-green-50 ring-1 ring-green-600' : 'border-transparent hover:border-slate-200'}`}
+                className={`p-6 cursor-pointer border-2 relative hover:shadow-xl transition-all ${selectedType === 'CO_BRANDING' ? 'border-green-600 bg-green-50 ring-1 ring-green-600' : 'border-transparent hover:border-slate-200'}`}
             >
                 {selectedType === 'CO_BRANDING' && <div className="absolute top-4 right-4 text-green-600"><CheckCircle2 /></div>}
-                <div className="h-14 w-14 bg-green-100 text-green-600 rounded-xl flex items-center justify-center mb-6">
-                    <Users2 size={28} />
+                <div className="flex items-center gap-4 mb-4">
+                    <div className="h-12 w-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center">
+                        <Users2 size={24} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">Co-Branding</h3>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Co-Branding / Barter</h3>
                 <p className="text-slate-500 text-sm leading-relaxed">
-                    I represent a brand looking to swap audiences, assets, or run joint campaigns.
+                    Brands looking to swap audiences, assets, or run joint campaigns.
                 </p>
             </Card>
 
