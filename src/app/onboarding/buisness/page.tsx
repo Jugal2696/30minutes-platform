@@ -5,10 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Building2, Target, CheckCircle2, ChevronRight, ChevronLeft, ShieldCheck, Share2 } from 'lucide-react';
-
-// 🛑 DELETED: Manual initialization that broke the session
-// const supabase = createClient(...);
+import { Building2, Target, CheckCircle2, ChevronRight, ChevronLeft, ShieldCheck, Share2, Map, Zap, Users2 } from 'lucide-react';
 
 export default function BrandOnboarding() {
   // ✅ INITIALIZE SHARED CLIENT
@@ -18,6 +15,9 @@ export default function BrandOnboarding() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  
+  // 🆕 STATE: Tracks what vertical the user selected previously (OOH, GUERRILLA, CO_BRANDING)
+  const [businessType, setBusinessType] = useState<string>('GENERIC');
 
   const [formData, setFormData] = useState({
     business_name: '',
@@ -25,6 +25,10 @@ export default function BrandOnboarding() {
     website_url: '',
     business_email: '',
     phone_number: '',
+    // Dynamic Fields Data
+    inventory_count: '', // For OOH
+    team_size: '',       // For Guerrilla
+    barter_value: '',    // For Co-Brand
     categories: '', 
     operating_regions: '', 
     target_audience: '',
@@ -45,16 +49,29 @@ export default function BrandOnboarding() {
       }
       setUser(data.user);
 
+      // ✅ LOGIC UPDATE: Check for existing record AND its status
       const { data: existing } = await supabase
         .from('businesses')
-        .select('id')
+        .select('id, business_type, verification_status')
         .eq('profile_id', data.user.id)
         .single();
       
-      if (existing) {
-        // ✅ Logic Check: If data exists, go to pending. 
-        // Since we fixed the client, this redirect will now carry the cookie correctly.
+      // If they are fully approved, send to dashboard
+      if (existing?.verification_status === 'APPROVED') {
+        window.location.href = '/dashboard/business';
+        return;
+      }
+
+      // If they have submitted and are waiting, send to pending
+      // BUT if status is 'PENDING_FORM' (from Type Selection), let them stay here
+      if (existing?.verification_status === 'PENDING') {
         window.location.href = '/onboarding/pending';
+        return;
+      }
+      
+      // Load the selected type to customize the UI
+      if (existing?.business_type) {
+        setBusinessType(existing.business_type);
       }
     }
     init();
@@ -79,20 +96,15 @@ export default function BrandOnboarding() {
     
     setLoading(true);
 
-    const { data: existing } = await supabase
-        .from('businesses')
-        .select('id')
-        .eq('profile_id', user.id)
-        .single();
-
-    if (existing) {
-        window.location.href = '/onboarding/pending';
-        return;
-    }
-
     const combinedDescription = `
+      [TYPE: ${businessType}]
       ${formData.brand_description}
       ---
+      [ASSETS]
+      Inventory Count: ${formData.inventory_count || 'N/A'}
+      Team Size: ${formData.team_size || 'N/A'}
+      Barter Value: ${formData.barter_value || 'N/A'}
+      
       [SOCIAL SIGNALS]
       Instagram: ${formData.instagram || 'N/A'}
       LinkedIn: ${formData.linkedin || 'N/A'}
@@ -104,7 +116,7 @@ export default function BrandOnboarding() {
     `.trim();
 
     const payload = {
-        profile_id: user.id,
+        // We do NOT include profile_id here because we are UPDATING an existing record
         business_name: formData.business_name,
         legal_entity_name: formData.legal_entity_name,
         website_url: formData.website_url,
@@ -114,23 +126,26 @@ export default function BrandOnboarding() {
         operating_regions: formData.operating_regions.split(',').map(s => s.trim()).filter(Boolean),
         target_audience_description: formData.target_audience,
         brand_description: combinedDescription,
-        verification_status: 'PENDING'
+        verification_status: 'PENDING' // Change status from PENDING_FORM to PENDING
     };
 
-    const { error } = await supabase.from('businesses').insert(payload);
+    // ✅ LOGIC UPDATE: Use Update instead of Insert (Record exists from Type Selection)
+    const { error } = await supabase
+        .from('businesses')
+        .update(payload)
+        .eq('profile_id', user.id);
 
     if (error) {
         alert("Submission Error: " + error.message);
         setLoading(false);
     } else {
-        // 📧 SEND ADMIN NOTIFICATION (New Addition)
-        // This fires the email to founder30minutesmarket@gmail.com
+        // 📧 SEND ADMIN NOTIFICATION
         try {
             await fetch('/api/send-alert', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    type: 'Business',
+                    type: `Business (${businessType})`,
                     name: formData.business_name,
                     email: formData.business_email
                 })
@@ -148,7 +163,13 @@ export default function BrandOnboarding() {
       <Card className="w-full max-w-3xl shadow-lg border-0 h-fit">
         <CardHeader className="border-b border-slate-100 bg-white rounded-t-xl pb-6">
             <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Brand Onboarding</span>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                    {/* Dynamic Header Label */}
+                    {businessType === 'OOH' && <Map size={14}/>}
+                    {businessType === 'GUERRILLA' && <Zap size={14}/>}
+                    {businessType === 'CO_BRANDING' && <Users2 size={14}/>}
+                    {businessType.replace('_', ' ')} Onboarding
+                </span>
                 <span className="text-xs font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-full">Step {step} of 4</span>
             </div>
             <div className="w-full bg-slate-100 h-2 rounded-full mt-2">
@@ -167,11 +188,11 @@ export default function BrandOnboarding() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="col-span-2 md:col-span-1">
                             <label className="text-sm font-bold text-slate-700">Business Name</label>
-                            <Input name="business_name" value={formData.business_name} onChange={handleChange} placeholder="e.g. Nike" className="mt-1"/>
+                            <Input name="business_name" value={formData.business_name} onChange={handleChange} placeholder="e.g. Acme Inc" className="mt-1"/>
                         </div>
                         <div className="col-span-2 md:col-span-1">
                             <label className="text-sm font-bold text-slate-700">Legal Entity Name</label>
-                            <Input name="legal_entity_name" value={formData.legal_entity_name} onChange={handleChange} placeholder="e.g. Nike Inc." className="mt-1"/>
+                            <Input name="legal_entity_name" value={formData.legal_entity_name} onChange={handleChange} placeholder="e.g. Acme Corp Ltd." className="mt-1"/>
                         </div>
                         <div className="col-span-2">
                             <label className="text-sm font-bold text-slate-700">Website URL</label>
@@ -195,6 +216,27 @@ export default function BrandOnboarding() {
                         <p className="text-slate-500 text-sm">Define where and who you serve.</p>
                     </div>
                     <div className="space-y-4">
+                        
+                        {/* 🛑 DYNAMIC FIELDS BASED ON SELECTION */}
+                        {businessType === 'OOH' && (
+                            <div>
+                                <label className="text-sm font-bold text-slate-700">Total Asset Count</label>
+                                <Input name="inventory_count" value={formData.inventory_count} onChange={handleChange} placeholder="Number of screens/billboards" className="mt-1"/>
+                            </div>
+                        )}
+                        {businessType === 'GUERRILLA' && (
+                            <div>
+                                <label className="text-sm font-bold text-slate-700">Field Team Size</label>
+                                <Input name="team_size" value={formData.team_size} onChange={handleChange} placeholder="Number of active agents" className="mt-1"/>
+                            </div>
+                        )}
+                        {businessType === 'CO_BRANDING' && (
+                            <div>
+                                <label className="text-sm font-bold text-slate-700">Estimated Barter Value ($)</label>
+                                <Input name="barter_value" value={formData.barter_value} onChange={handleChange} placeholder="Value of goods/services for swap" className="mt-1"/>
+                            </div>
+                        )}
+
                         <div>
                             <label className="text-sm font-bold text-slate-700">Categories</label>
                             <Input name="categories" value={formData.categories} onChange={handleChange} placeholder="e.g. Fashion, Retail, Tech (comma separated)" className="mt-1"/>
@@ -271,6 +313,11 @@ export default function BrandOnboarding() {
                         <div className="flex justify-between border-b border-slate-200 pb-2">
                             <span className="text-slate-500">Email</span>
                             <span className="font-bold text-slate-900">{formData.business_email}</span>
+                        </div>
+                        {/* Dynamic Review Field */}
+                        <div className="flex justify-between border-b border-slate-200 pb-2">
+                            <span className="text-slate-500">Type</span>
+                            <span className="font-bold text-slate-900">{businessType}</span>
                         </div>
                     </div>
                     <div className={`flex items-start gap-3 p-4 rounded-md border transition-all ${isAuthorized ? 'bg-green-50 border-green-200 text-green-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
