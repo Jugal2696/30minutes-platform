@@ -35,10 +35,10 @@ export default function RoleSelection() {
         .single();
 
       if (profile && profile.role !== 'UNASSIGNED') {
-         // Role is already locked. Redirect.
-         // ✅ CTO FIX: Updated path to match your folder 'buisness'
-         if (profile.role === 'BUSINESS') window.location.href = '/onboarding/buisness';
-         else if (profile.role === 'CREATOR') window.location.href = '/onboarding/creator';
+         // Role is already locked. Redirect to Type Selection (Vision Alignment).
+         // ✅ CTO UPDATE: Route to Vertical Selection instead of direct form
+         if (profile.role === 'BUSINESS') window.location.href = '/onboarding/business/select-type';
+         else if (profile.role === 'CREATOR') window.location.href = '/onboarding/creator/select-type';
          else if (profile.role === 'ADMIN') window.location.href = '/admin';
       } else {
          setCheckingRole(false);
@@ -63,12 +63,13 @@ export default function RoleSelection() {
       return;
     }
 
-    // 2. Redirect to correct onboarding folder
+    // 2. Redirect to Vertical Selection (PRD Module A & C Alignment)
     if (selectedRole === 'BUSINESS') {
-      // ✅ CTO FIX: Updated path to match your folder 'buisness'
-      window.location.href = '/onboarding/buisness';
+      // ✅ CTO UPDATE: Go to Inventory/Co-Brand Selection
+      window.location.href = '/onboarding/business/select-type';
     } else {
-      window.location.href = '/onboarding/creator';
+      // ✅ CTO UPDATE: Go to Influencer/Star Tier Selection
+      window.location.href = '/onboarding/creator/select-type';
     }
   }
 
