@@ -29,29 +29,27 @@ export default function BusinessTypeSelection() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans">
-      <div className="max-w-5xl w-full space-y-10">
+      <div className="max-w-6xl w-full space-y-10">
         
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-extrabold text-slate-900">Define Your Inventory</h1>
           <p className="text-slate-500 text-lg">Select the primary channel you operate in.</p>
         </div>
 
-        {/* CHANGED to grid-cols-2 for a balanced 2x2 layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* ✅ RESTORED: 4 items in a row (lg:grid-cols-4) matching previous card style */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             
             {/* 1. OOH */}
             <Card 
                 onClick={() => setSelectedType('OOH')}
-                className={`p-6 cursor-pointer border-2 relative hover:shadow-xl transition-all ${selectedType === 'OOH' ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600' : 'border-transparent hover:border-slate-200'}`}
+                className={`p-6 cursor-pointer border-2 hover:shadow-xl transition-all flex flex-col items-center text-center relative ${selectedType === 'OOH' ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600' : 'border-transparent hover:border-slate-200'}`}
             >
-                {selectedType === 'OOH' && <div className="absolute top-4 right-4 text-blue-600"><CheckCircle2 /></div>}
-                <div className="flex items-center gap-4 mb-4">
-                    <div className="h-12 w-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
-                        <Map size={24} />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900">OOH & Billboards</h3>
+                {selectedType === 'OOH' && <div className="absolute top-3 right-3 text-blue-600"><CheckCircle2 size={20} /></div>}
+                <div className="h-14 w-14 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-4">
+                    <Map size={28} />
                 </div>
-                <p className="text-slate-500 text-sm leading-relaxed">
+                <h3 className="text-lg font-bold text-slate-900 mb-2">OOH & Billboards</h3>
+                <p className="text-slate-500 text-xs leading-relaxed">
                     Physical ad spaces, digital screens, hoardings, and transit media assets.
                 </p>
             </Card>
@@ -59,16 +57,14 @@ export default function BusinessTypeSelection() {
             {/* 2. GUERRILLA */}
             <Card 
                 onClick={() => setSelectedType('GUERRILLA')}
-                className={`p-6 cursor-pointer border-2 relative hover:shadow-xl transition-all ${selectedType === 'GUERRILLA' ? 'border-orange-600 bg-orange-50 ring-1 ring-orange-600' : 'border-transparent hover:border-slate-200'}`}
+                className={`p-6 cursor-pointer border-2 hover:shadow-xl transition-all flex flex-col items-center text-center relative ${selectedType === 'GUERRILLA' ? 'border-orange-600 bg-orange-50 ring-1 ring-orange-600' : 'border-transparent hover:border-slate-200'}`}
             >
-                {selectedType === 'GUERRILLA' && <div className="absolute top-4 right-4 text-orange-600"><CheckCircle2 /></div>}
-                <div className="flex items-center gap-4 mb-4">
-                    <div className="h-12 w-12 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center">
-                        <Zap size={24} />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900">Guerrilla Marketing</h3>
+                {selectedType === 'GUERRILLA' && <div className="absolute top-3 right-3 text-orange-600"><CheckCircle2 size={20} /></div>}
+                <div className="h-14 w-14 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center mb-4">
+                    <Zap size={28} />
                 </div>
-                <p className="text-slate-500 text-sm leading-relaxed">
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Guerrilla Marketing</h3>
+                <p className="text-slate-500 text-xs leading-relaxed">
                     Street teams, flyer distribution, pop-up activations, and wild posting.
                 </p>
             </Card>
@@ -76,16 +72,14 @@ export default function BusinessTypeSelection() {
             {/* 3. PRINT MEDIA (NEW) */}
             <Card 
                 onClick={() => setSelectedType('PRINT_MEDIA')}
-                className={`p-6 cursor-pointer border-2 relative hover:shadow-xl transition-all ${selectedType === 'PRINT_MEDIA' ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-transparent hover:border-slate-200'}`}
+                className={`p-6 cursor-pointer border-2 hover:shadow-xl transition-all flex flex-col items-center text-center relative ${selectedType === 'PRINT_MEDIA' ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600' : 'border-transparent hover:border-slate-200'}`}
             >
-                {selectedType === 'PRINT_MEDIA' && <div className="absolute top-4 right-4 text-indigo-600"><CheckCircle2 /></div>}
-                <div className="flex items-center gap-4 mb-4">
-                    <div className="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center">
-                        <Newspaper size={24} />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900">Print Ads</h3>
+                {selectedType === 'PRINT_MEDIA' && <div className="absolute top-3 right-3 text-indigo-600"><CheckCircle2 size={20} /></div>}
+                <div className="h-14 w-14 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center mb-4">
+                    <Newspaper size={28} />
                 </div>
-                <p className="text-slate-500 text-sm leading-relaxed">
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Print Ads</h3>
+                <p className="text-slate-500 text-xs leading-relaxed">
                     Newspapers, magazines, local tabloids, and physical publications.
                 </p>
             </Card>
@@ -93,23 +87,21 @@ export default function BusinessTypeSelection() {
             {/* 4. CO-BRANDING */}
             <Card 
                 onClick={() => setSelectedType('CO_BRANDING')}
-                className={`p-6 cursor-pointer border-2 relative hover:shadow-xl transition-all ${selectedType === 'CO_BRANDING' ? 'border-green-600 bg-green-50 ring-1 ring-green-600' : 'border-transparent hover:border-slate-200'}`}
+                className={`p-6 cursor-pointer border-2 hover:shadow-xl transition-all flex flex-col items-center text-center relative ${selectedType === 'CO_BRANDING' ? 'border-green-600 bg-green-50 ring-1 ring-green-600' : 'border-transparent hover:border-slate-200'}`}
             >
-                {selectedType === 'CO_BRANDING' && <div className="absolute top-4 right-4 text-green-600"><CheckCircle2 /></div>}
-                <div className="flex items-center gap-4 mb-4">
-                    <div className="h-12 w-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center">
-                        <Users2 size={24} />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900">Co-Branding</h3>
+                {selectedType === 'CO_BRANDING' && <div className="absolute top-3 right-3 text-green-600"><CheckCircle2 size={20} /></div>}
+                <div className="h-14 w-14 bg-green-100 text-green-600 rounded-xl flex items-center justify-center mb-4">
+                    <Users2 size={28} />
                 </div>
-                <p className="text-slate-500 text-sm leading-relaxed">
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Co-Branding</h3>
+                <p className="text-slate-500 text-xs leading-relaxed">
                     Brands looking to swap audiences, assets, or run joint campaigns.
                 </p>
             </Card>
 
         </div>
 
-        <div className="flex justify-center pt-4">
+        <div className="flex justify-center pt-8">
             <Button 
                 onClick={handleNext} 
                 disabled={!selectedType || loading} 
